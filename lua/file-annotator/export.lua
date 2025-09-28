@@ -476,7 +476,7 @@ function M.generate_interactive_lines(lines, layer_info)
   local html_lines = ""
 
   for i, line in ipairs(lines) do
-    local line_annotations = M.get_all_line_annotations(i)
+    local line_annotations = M.get_all_line_annotations(i, layer_info)
 
     -- Generate layer indicators
     local indicators = ""
@@ -526,7 +526,7 @@ function M.generate_interactive_lines(lines, layer_info)
   return html_lines
 end
 
-function M.get_all_line_annotations(line_num)
+function M.get_all_line_annotations(line_num, layer_info)
   local annotations_by_layer = {}
 
   for layer_name, layer_annotations in pairs(state.annotations) do
@@ -534,10 +534,16 @@ function M.get_all_line_annotations(line_num)
 
     for label_name, label_annotations in pairs(layer_annotations) do
       if label_annotations[line_num] then
+        -- Use the globally assigned color from layer_info instead of the original state color
+        local global_color = layer_info and layer_info[layer_name] and
+                           layer_info[layer_name].labels[label_name] and
+                           layer_info[layer_name].labels[label_name].color
+        local color = global_color or state.layers[layer_name].labels[label_name].color
+
         table.insert(annotations_by_layer[layer_name], {
           layer = layer_name,
           label = label_name,
-          color = state.layers[layer_name].labels[label_name].color
+          color = color
         })
       end
     end
