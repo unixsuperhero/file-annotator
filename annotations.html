@@ -127,38 +127,38 @@
             overflow-x: auto;
             position: relative;
         }
-        .line.layer-data-active .line-content {
+        .line.layer-flow-active .line-content {
             background-color: #FF6B6B40 !important;
             color: #000000 !important;
         }
-        .layer-indicator.data {
+        .layer-indicator.flow {
             background-color: #FF6B6B;
         }
-        .layer-toggle[data-layer="data"] {
+        .layer-toggle[data-layer="flow"] {
             background-color: #FF6B6B20;
             border-color: #FF6B6B;
             color: #000000;
         }
-        .line.layer-flow-active .line-content {
+        .line.layer-data-active .line-content {
             background-color: #4ECDC440 !important;
             color: #000000 !important;
         }
-        .layer-indicator.flow {
+        .layer-indicator.data {
             background-color: #4ECDC4;
         }
-        .layer-toggle[data-layer="flow"] {
+        .layer-toggle[data-layer="data"] {
             background-color: #4ECDC420;
             border-color: #4ECDC4;
             color: #000000;
         }
-        .line.layer-behavior-active .line-content {
+        .line.layer-l3-active .line-content {
             background-color: #45B7D140 !important;
             color: #000000 !important;
         }
-        .layer-indicator.behavior {
+        .layer-indicator.l3 {
             background-color: #45B7D1;
         }
-        .layer-toggle[data-layer="behavior"] {
+        .layer-toggle[data-layer="l3"] {
             background-color: #45B7D120;
             border-color: #45B7D1;
             color: #000000;
@@ -170,69 +170,72 @@
         <div class="header">
             <div class="filename">file-annotator.lua</div>
             <div class="metadata">
-                Exported on 2025-09-28 15:35:57<br>
+                Exported on 2025-09-28 15:41:11<br>
                 Source: /Users/josh/proj/file-annotator/plugin/file-annotator.lua            </div>
         </div>
 
         <div class="layer-controls">
             <h3>Layer Controls</h3>
+            <div style="font-size: 11px; color: #666; margin-bottom: 8px;">
+                Click to toggle layers • Shift+click to show only that layer
+            </div>
             <div class="controls">
-                <span class="layer-toggle" data-layer="data">data</span>
                 <span class="layer-toggle" data-layer="flow">flow</span>
-                <span class="layer-toggle" data-layer="behavior">behavior</span>
+                <span class="layer-toggle" data-layer="data">data</span>
+                <span class="layer-toggle" data-layer="l3">l3</span>
             </div>
             <div class="legend">
-<strong>data:</strong> <span class="legend-item" style="background-color: #FF6B6B; color: #000000;">option</span><br><strong>flow:</strong> <span class="legend-item" style="background-color: #FF6B6B; color: #000000;">conditional</span><span class="legend-item" style="background-color: #4ECDC4; color: #000000;">return</span><br><strong>behavior:</strong> <span class="legend-item" style="background-color: #FF6B6B; color: #000000;">fncall</span><br>            </div>
+<strong>flow:</strong> <span class="legend-item" style="background-color: #4ECDC4; color: #000000;">return</span><span class="legend-item" style="background-color: #FF6B6B; color: #000000;">cond</span><br><strong>data:</strong> <span class="legend-item" style="background-color: #FF6B6B; color: #000000;">option</span><br><strong>l3:</strong> <span class="legend-item" style="background-color: #FF6B6B; color: #000000;">fncall</span><br>            </div>
         </div>
 
         <div class="code-container">
             <div class="line" data-line="1">
-                <div class="line-indicators"><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator behavior" data-layer="behavior"></div></div>
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator l3" data-layer="l3"></div></div>
                 <div class="line-number">1</div>
                 <div class="line-content">-- File Annotator Plugin Entry Point</div>
             </div>
             <div class="line" data-line="2">
-                <div class="line-indicators"><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator behavior" data-layer="behavior"></div></div>
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator l3" data-layer="l3"></div></div>
                 <div class="line-number">2</div>
                 <div class="line-content">-- This file ensures the plugin is loaded when Neovim starts</div>
             </div>
             <div class="line" data-line="3">
-                <div class="line-indicators"><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator behavior" data-layer="behavior"></div></div>
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator l3" data-layer="l3"></div></div>
                 <div class="line-number">3</div>
                 <div class="line-content"></div>
             </div>
-            <div class="line has-flow" data-line="4" data-flow-labels="conditional">
-                <div class="line-indicators"><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator behavior" data-layer="behavior"></div></div>
+            <div class="line has-flow" data-line="4" data-flow-labels="cond">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator l3" data-layer="l3"></div></div>
                 <div class="line-number">4</div>
                 <div class="line-content">if vim.g.loaded_file_annotator then</div>
             </div>
             <div class="line has-flow" data-line="5" data-flow-labels="return">
-                <div class="line-indicators"><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator behavior" data-layer="behavior"></div></div>
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator l3" data-layer="l3"></div></div>
                 <div class="line-number">5</div>
                 <div class="line-content">  return</div>
             </div>
             <div class="line" data-line="6">
-                <div class="line-indicators"><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator behavior" data-layer="behavior"></div></div>
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator l3" data-layer="l3"></div></div>
                 <div class="line-number">6</div>
                 <div class="line-content">end</div>
             </div>
             <div class="line has-data" data-line="7" data-data-labels="option">
-                <div class="line-indicators"><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator behavior" data-layer="behavior"></div></div>
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator l3" data-layer="l3"></div></div>
                 <div class="line-number">7</div>
                 <div class="line-content">vim.g.loaded_file_annotator = 1</div>
             </div>
             <div class="line" data-line="8">
-                <div class="line-indicators"><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator behavior" data-layer="behavior"></div></div>
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator l3" data-layer="l3"></div></div>
                 <div class="line-number">8</div>
                 <div class="line-content"></div>
             </div>
             <div class="line" data-line="9">
-                <div class="line-indicators"><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator behavior" data-layer="behavior"></div></div>
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator l3" data-layer="l3"></div></div>
                 <div class="line-number">9</div>
                 <div class="line-content">-- Initialize the plugin</div>
             </div>
-            <div class="line has-behavior" data-line="10" data-behavior-labels="fncall">
-                <div class="line-indicators"><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator behavior" data-layer="behavior"></div></div>
+            <div class="line has-l3" data-line="10" data-l3-labels="fncall">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator data" data-layer="data"></div><div class="layer-indicator l3" data-layer="l3"></div></div>
                 <div class="line-number">10</div>
                 <div class="line-content">require(&quot;file-annotator&quot;).setup()</div>
             </div>
@@ -240,22 +243,38 @@
     </div>
 
     <script>
-        const layers = ["data", "flow", "behavior"];
+        const layers = ["flow", "data", "l3"];
         const activeLayers = new Set();
 
         document.addEventListener('DOMContentLoaded', function() {
             const toggles = document.querySelectorAll('.layer-toggle');
 
             toggles.forEach(toggle => {
-                toggle.addEventListener('click', function() {
+                toggle.addEventListener('click', function(event) {
                     const layer = this.dataset.layer;
 
-                    if (activeLayers.has(layer)) {
-                        activeLayers.delete(layer);
-                        this.classList.remove('active');
-                    } else {
+                    if (event.shiftKey) {
+                        // Shift+click: Turn on this layer and turn off all others
+                        activeLayers.clear();
                         activeLayers.add(layer);
-                        this.classList.add('active');
+
+                        // Update all toggle buttons
+                        toggles.forEach(t => {
+                            if (t.dataset.layer === layer) {
+                                t.classList.add('active');
+                            } else {
+                                t.classList.remove('active');
+                            }
+                        });
+                    } else {
+                        // Normal click: Toggle this layer
+                        if (activeLayers.has(layer)) {
+                            activeLayers.delete(layer);
+                            this.classList.remove('active');
+                        } else {
+                            activeLayers.add(layer);
+                            this.classList.add('active');
+                        }
                     }
 
                     updateDisplay();
