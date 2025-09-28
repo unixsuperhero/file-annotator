@@ -62,8 +62,23 @@ The plugin automatically creates layers and labels when they don't exist:
 - `:FAAnnotate <label> <layer>` - Creates both label and layer if needed
 - `:FAAnnotateSelection <label> <layer>` - Same for selected lines
 - **Auto-switches** to the specified layer (no need to manually switch)
+- **Layer-specific labels** - Same label name can exist in different layers
+- **Current layer highlighting** - Only shows highlights from the current layer
 - Auto-assigns colors from the default color palette
 - Notifies you when new items are created or when switching layers
+
+## Layer-Specific Design
+
+The plugin is designed around layer-specific labels:
+
+- **Independent labels**: Each layer has its own set of labels (e.g., "good" can exist in both "review" and "issues" layers)
+- **Current layer focus**: Only highlights from the current layer are shown by default
+- **Easy switching**: Change layers with `:FASetLayer <name>` or by annotating with a layer specification
+- **Layer isolation**: Switching layers immediately updates highlights to show only that layer's annotations
+- **All-layer view**: Use `:FAShowAllLayers` to see annotations from all visible layers at once
+- **Current layer view**: Use `:FAShowCurrentLayer` to return to single-layer view
+
+This design allows you to organize annotations by purpose (review, issues, notes) without visual clutter.
 
 ## Commands
 
@@ -103,6 +118,8 @@ The plugin automatically creates layers and labels when they don't exist:
 |---------|-------------|
 | `:FAExportHTML [filename]` | Export annotations to HTML |
 | `:FAShowStats` | Show annotation statistics |
+| `:FAShowCurrentLayer` | Show only current layer highlights |
+| `:FAShowAllLayers` | Show all visible layer highlights |
 | `:FAQuickSetup` | Quick setup with default layers |
 
 ## Usage Examples

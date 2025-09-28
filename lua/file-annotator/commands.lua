@@ -194,6 +194,22 @@ function M.setup()
     desc = "Show annotation statistics"
   })
 
+  vim.api.nvim_create_user_command("FAShowAllLayers", function()
+    require("file-annotator.highlights").refresh_buffer_all_layers()
+    vim.notify("Showing annotations from all visible layers", vim.log.levels.INFO)
+  end, {
+    desc = "Show annotations from all visible layers"
+  })
+
+  vim.api.nvim_create_user_command("FAShowCurrentLayer", function()
+    require("file-annotator.highlights").refresh_buffer()
+    local state = require("file-annotator").state
+    local layer_name = state.current_layer or "none"
+    vim.notify("Showing annotations from current layer only: " .. layer_name, vim.log.levels.INFO)
+  end, {
+    desc = "Show annotations from current layer only"
+  })
+
   -- Quick annotation commands (for common workflows)
   vim.api.nvim_create_user_command("FAQuickSetup", function()
     M.quick_setup()
@@ -215,16 +231,29 @@ end
 
 function M.complete_labels(arg_lead, cmd_line, cursor_pos)
   local state = require("file-annotator").state
-  if not state.current_layer or not state.layers[state.current_layer] then
-    return {}
-  end
 
+  -- If we have a current layer, prioritize its labels
   local label_names = {}
-  for name, _ in pairs(state.layers[state.current_layer].labels) do
-    if vim.startswith(name, arg_lead) then
-      table.insert(label_names, name)
+
+  if state.current_layer and state.layers[state.current_layer] then
+    for name, _ in pairs(state.layers[state.current_layer].labels) do
+      if vim.startswith(name, arg_lead) then
+        table.insert(label_names, name)
+      end
     end
   end
+
+  -- Also include labels from other layers (but avoid duplicates for completion clarity)
+  for layer_name, layer in pairs(state.layers) do
+    if layer_name ~= state.current_layer then
+      for label_name, _ in pairs(layer.labels) do
+        if vim.startswith(label_name, arg_lead) and not vim.tbl_contains(label_names, label_name) then
+          table.insert(label_names, label_name)
+        end
+      end
+    end
+  end
+
   return label_names
 end
 

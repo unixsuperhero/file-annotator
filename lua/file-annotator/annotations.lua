@@ -20,6 +20,7 @@ function M.annotate_line(line_num, label_name, layer_name)
   -- Auto-switch to the layer if it's not the current one
   if state.current_layer ~= layer_name then
     state.current_layer = layer_name
+    require("file-annotator.highlights").refresh_buffer()
     vim.notify("Switched to layer: " .. layer_name, vim.log.levels.INFO)
   end
 

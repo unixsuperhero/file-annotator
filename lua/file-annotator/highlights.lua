@@ -59,7 +59,28 @@ function M.refresh_buffer()
     vim.api.nvim_buf_clear_namespace(bufnr, namespace, 0, -1)
   end
 
-  -- Reapply all annotations
+  -- Only show highlights for the current layer
+  if state.current_layer and state.annotations[state.current_layer] then
+    local layer_annotations = state.annotations[state.current_layer]
+    for label_name, label_annotations in pairs(layer_annotations) do
+      for line_num, annotation in pairs(label_annotations) do
+        if annotation.bufnr == bufnr then
+          M.apply_highlight(state.current_layer, label_name, line_num)
+        end
+      end
+    end
+  end
+end
+
+function M.refresh_buffer_all_layers()
+  local bufnr = vim.api.nvim_get_current_buf()
+
+  -- Clear all namespaces first
+  for layer_name, namespace in pairs(state.namespaces) do
+    vim.api.nvim_buf_clear_namespace(bufnr, namespace, 0, -1)
+  end
+
+  -- Reapply all annotations from all visible layers (for export/special cases)
   for layer_name, layer_annotations in pairs(state.annotations) do
     if state.layers[layer_name] and state.layers[layer_name].visible then
       for label_name, label_annotations in pairs(layer_annotations) do

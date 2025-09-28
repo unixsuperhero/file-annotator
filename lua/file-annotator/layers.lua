@@ -98,6 +98,7 @@ function M.set_current_layer(name)
   end
 
   state.current_layer = name
+  require("file-annotator.highlights").refresh_buffer()
   vim.notify("Switched to layer: " .. name, vim.log.levels.INFO)
   return true
 end
