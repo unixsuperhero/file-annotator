@@ -93,7 +93,6 @@ function M.setup()
 
   -- Annotation commands
   vim.api.nvim_create_user_command("FAAnnotate", function(opts)
-    local line_num = vim.fn.line(".")
     local args = vim.split(opts.args, " ", { plain = true })
 
     if #args < 1 or #args > 2 then
@@ -104,11 +103,23 @@ function M.setup()
     local label_name = args[1]
     local layer_name = args[2] -- nil if not provided
 
-    annotations.annotate_line(line_num, label_name, layer_name)
+    -- Check if this is a range command
+    if opts.range == 2 then
+      -- Range was specified (e.g., :5,10FAAnnotate label)
+      annotations.annotate_range(opts.line1, opts.line2, label_name, layer_name)
+    elseif opts.range == 1 then
+      -- Single line range (e.g., :5FAAnnotate label)
+      annotations.annotate_line(opts.line1, label_name, layer_name)
+    else
+      -- No range, use current line
+      local line_num = vim.fn.line(".")
+      annotations.annotate_line(line_num, label_name, layer_name)
+    end
   end, {
     nargs = "+",
+    range = true,
     complete = M.complete_label_and_layer,
-    desc = "Annotate current line with label and optional layer"
+    desc = "Annotate current line or range with label and optional layer"
   })
 
   vim.api.nvim_create_user_command("FARemoveAnnotation", function(opts)

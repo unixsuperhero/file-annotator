@@ -5,20 +5,26 @@ function M.annotate_line(line_num, label_name, layer_name)
   layer_name = layer_name or state.current_layer
 
   if not layer_name then
-    vim.notify("No current layer set", vim.log.levels.ERROR)
+    vim.notify("No current layer set and no layer specified", vim.log.levels.ERROR)
     return false
   end
 
+  local layers = require("file-annotator.layers")
+
   -- Auto-create layer if it doesn't exist
   if not state.layers[layer_name] then
-    local layers = require("file-annotator.layers")
     layers.create_layer(layer_name)
     vim.notify("Auto-created layer: " .. layer_name, vim.log.levels.INFO)
   end
 
+  -- Auto-switch to the layer if it's not the current one
+  if state.current_layer ~= layer_name then
+    state.current_layer = layer_name
+    vim.notify("Switched to layer: " .. layer_name, vim.log.levels.INFO)
+  end
+
   -- Auto-create label if it doesn't exist
   if not state.layers[layer_name].labels[label_name] then
-    local layers = require("file-annotator.layers")
     layers.add_label(layer_name, label_name)
     vim.notify("Auto-created label '" .. label_name .. "' in layer '" .. layer_name .. "'", vim.log.levels.INFO)
   end
@@ -139,6 +145,29 @@ function M.annotate_selection(label_name, layer_name)
   end
 
   vim.notify("Annotated " .. success_count .. " lines with label '" .. label_name .. "'", vim.log.levels.INFO)
+  return success_count > 0
+end
+
+function M.annotate_range(start_line, end_line, label_name, layer_name)
+  if not start_line or not end_line then
+    vim.notify("Invalid range specified", vim.log.levels.ERROR)
+    return false
+  end
+
+  if start_line > end_line then
+    start_line, end_line = end_line, start_line
+  end
+
+  local success_count = 0
+  for line_num = start_line, end_line do
+    if M.annotate_line(line_num, label_name, layer_name) then
+      success_count = success_count + 1
+    end
+  end
+
+  if success_count > 1 then
+    vim.notify("Annotated " .. success_count .. " lines (lines " .. start_line .. "-" .. end_line .. ") with label '" .. label_name .. "'", vim.log.levels.INFO)
+  end
   return success_count > 0
 end
 

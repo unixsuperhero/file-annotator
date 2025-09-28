@@ -61,8 +61,9 @@ The plugin automatically creates layers and labels when they don't exist:
 
 - `:FAAnnotate <label> <layer>` - Creates both label and layer if needed
 - `:FAAnnotateSelection <label> <layer>` - Same for selected lines
+- **Auto-switches** to the specified layer (no need to manually switch)
 - Auto-assigns colors from the default color palette
-- Notifies you when new items are created
+- Notifies you when new items are created or when switching layers
 
 ## Commands
 
@@ -89,7 +90,8 @@ The plugin automatically creates layers and labels when they don't exist:
 
 | Command | Description |
 |---------|-------------|
-| `:FAAnnotate <label> [layer]` | Annotate current line with label (auto-creates if needed) |
+| `:FAAnnotate <label> [layer]` | Annotate current line/range with label (auto-creates & switches) |
+| `:[range]FAAnnotate <label> [layer]` | Annotate specific line range (e.g., `:5,10FAAnnotate bug`) |
 | `:FARemoveAnnotation <label>` | Remove annotation from current line |
 | `:FAToggleAnnotation <label>` | Toggle annotation on current line |
 | `:FAAnnotateSelection <label> [layer]` | Annotate selected lines (auto-creates if needed) |
@@ -112,7 +114,7 @@ The plugin automatically creates layers and labels when they don't exist:
 \" Directly annotate with layer specification - creates both label and layer if needed
 :FAAnnotate good review
 :FAAnnotate needs_work review
-:FAAnnotate bug issues
+:5,15FAAnnotate bug issues           \" Annotate lines 5-15 with 'bug' in issues layer
 :FAAnnotate security issues
 
 \" Manual workflow (traditional)
@@ -169,6 +171,12 @@ The plugin automatically creates layers and labels when they don't exist:
 ### Multi-line Annotation
 
 ```vim
+\" Method 1: Range annotation (specify exact line numbers)
+:5,10FAAnnotate needs_work review     \" Annotate lines 5-10
+:15FAAnnotate bug issues              \" Annotate line 15
+:.,+5FAAnnotate unclear notes         \" Annotate current line + next 5
+
+\" Method 2: Visual selection
 \" Select multiple lines in visual mode, then:
 :'<,'>FAAnnotateSelection needs_work review    \" With layer specification
 :'<,'>FAAnnotateSelection needs_work           \" Uses current layer
