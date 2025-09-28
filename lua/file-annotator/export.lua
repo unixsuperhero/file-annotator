@@ -182,6 +182,9 @@ function M.generate_html(lines, filename, options)
 
         <div class="layer-controls">
             <h3>Layer Controls</h3>
+            <div style="font-size: 11px; color: #666; margin-bottom: 8px;">
+                Click to toggle layers • Shift+click to show only that layer
+            </div>
             <div class="controls">
 ]] .. M.generate_interactive_layer_controls(layer_info) .. [[
             </div>
@@ -512,15 +515,31 @@ function M.generate_javascript(layer_info)
             const toggles = document.querySelectorAll('.layer-toggle');
 
             toggles.forEach(toggle => {
-                toggle.addEventListener('click', function() {
+                toggle.addEventListener('click', function(event) {
                     const layer = this.dataset.layer;
 
-                    if (activeLayers.has(layer)) {
-                        activeLayers.delete(layer);
-                        this.classList.remove('active');
-                    } else {
+                    if (event.shiftKey) {
+                        // Shift+click: Turn on this layer and turn off all others
+                        activeLayers.clear();
                         activeLayers.add(layer);
-                        this.classList.add('active');
+
+                        // Update all toggle buttons
+                        toggles.forEach(t => {
+                            if (t.dataset.layer === layer) {
+                                t.classList.add('active');
+                            } else {
+                                t.classList.remove('active');
+                            }
+                        });
+                    } else {
+                        // Normal click: Toggle this layer
+                        if (activeLayers.has(layer)) {
+                            activeLayers.delete(layer);
+                            this.classList.remove('active');
+                        } else {
+                            activeLayers.add(layer);
+                            this.classList.add('active');
+                        }
                     }
 
                     updateDisplay();

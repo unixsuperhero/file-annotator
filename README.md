@@ -219,6 +219,7 @@ vim.keymap.set("v", "<leader>as", ":FAAnnotateSelection ", { desc = "Annotate se
 The HTML export creates an interactive single-file report with:
 
 - **Interactive layer toggling** - Click layer buttons to show/hide any combination of layers
+- **Exclusive layer mode** - Shift+click any layer to show only that layer (hide all others)
 - **Layer indicators** - Small colored dots show which layers have annotations on each line
 - **Distinct layer colors** - Each layer has its own distinct background color
 - **Multi-layer visualization** - See multiple layer annotations simultaneously without conflict
