@@ -248,13 +248,6 @@ function M.setup()
     desc = "Quick setup with default layers and labels"
   })
 
-  -- Git integration commands
-  vim.api.nvim_create_user_command("FACommitAndPush", function(opts)
-    M.commit_and_push(opts.args)
-  end, {
-    nargs = "?",
-    desc = "Commit changes with message and push to remote"
-  })
 end
 
 function M.complete_layers(arg_lead, cmd_line, cursor_pos)
@@ -439,64 +432,5 @@ function M.setup_keymaps()
   end, opts)
 end
 
-function M.commit_and_push(message)
-  -- Default commit message
-  if not message or message == "" then
-    message = "Update file annotations - " .. os.date("%Y-%m-%d %H:%M:%S")
-  end
-
-  local function run_git_command(cmd, description)
-    local handle = io.popen(cmd .. " 2>&1")
-    local result = handle:read("*a")
-    local success = handle:close()
-
-    if not success then
-      vim.notify(description .. " failed: " .. result, vim.log.levels.ERROR)
-      return false
-    end
-
-    vim.notify(description .. " completed", vim.log.levels.INFO)
-    return true
-  end
-
-  -- Check if we're in a git repository
-  local git_check = io.popen("git rev-parse --is-inside-work-tree 2>/dev/null")
-  local is_git_repo = git_check:read("*a"):match("true")
-  git_check:close()
-
-  if not is_git_repo then
-    vim.notify("Not in a git repository", vim.log.levels.ERROR)
-    return false
-  end
-
-  -- Add all changes
-  if not run_git_command("git add .", "Adding changes") then
-    return false
-  end
-
-  -- Check if there are changes to commit
-  local status_check = io.popen("git status --porcelain")
-  local changes = status_check:read("*a")
-  status_check:close()
-
-  if changes == "" then
-    vim.notify("No changes to commit", vim.log.levels.WARN)
-    return false
-  end
-
-  -- Commit changes
-  local commit_cmd = string.format("git commit -m %q", message)
-  if not run_git_command(commit_cmd, "Committing changes") then
-    return false
-  end
-
-  -- Push to remote
-  if not run_git_command("git push", "Pushing to remote") then
-    return false
-  end
-
-  vim.notify("Successfully committed and pushed changes!", vim.log.levels.INFO)
-  return true
-end
 
 return M
