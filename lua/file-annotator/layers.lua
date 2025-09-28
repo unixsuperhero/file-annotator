@@ -91,6 +91,49 @@ function M.rename_layer(old_name, new_name)
   return true
 end
 
+function M.duplicate_layer(source_name, new_name)
+  if not state.layers[source_name] then
+    vim.notify("Layer '" .. source_name .. "' does not exist", vim.log.levels.ERROR)
+    return false
+  end
+
+  if not new_name or new_name == "" then
+    vim.notify("New layer name cannot be empty", vim.log.levels.ERROR)
+    return false
+  end
+
+  if state.layers[new_name] then
+    vim.notify("Layer '" .. new_name .. "' already exists", vim.log.levels.ERROR)
+    return false
+  end
+
+  -- Create new layer
+  state.layers[new_name] = {
+    labels = {},
+    visible = true,
+    created_at = os.time()
+  }
+
+  -- Create namespace for new layer
+  state.namespaces[new_name] = vim.api.nvim_create_namespace("file_annotator_" .. new_name)
+
+  -- Copy all labels from source layer
+  for label_name, label_data in pairs(state.layers[source_name].labels) do
+    state.layers[new_name].labels[label_name] = {
+      color = label_data.color,
+      created_at = os.time()
+    }
+
+    -- Create highlight group for the new layer's label
+    require("file-annotator.highlights").create_highlight_group(new_name, label_name, label_data.color)
+  end
+
+  -- Note: We don't copy annotations, only the layer structure and labels
+  vim.notify("Duplicated layer '" .. source_name .. "' to '" .. new_name .. "' with " ..
+             vim.tbl_count(state.layers[new_name].labels) .. " labels", vim.log.levels.INFO)
+  return true
+end
+
 function M.set_current_layer(name)
   if not state.layers[name] then
     vim.notify("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)

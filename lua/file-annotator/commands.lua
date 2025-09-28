@@ -33,6 +33,19 @@ function M.setup()
     desc = "Rename an annotation layer"
   })
 
+  vim.api.nvim_create_user_command("FADuplicateLayer", function(opts)
+    local args = vim.split(opts.args, " ", { plain = true })
+    if #args ~= 2 then
+      vim.notify("Usage: FADuplicateLayer <source_layer> <new_layer>", vim.log.levels.ERROR)
+      return
+    end
+    layers.duplicate_layer(args[1], args[2])
+  end, {
+    nargs = "+",
+    complete = M.complete_layers,
+    desc = "Duplicate an annotation layer with all its labels"
+  })
+
   vim.api.nvim_create_user_command("FASetLayer", function(opts)
     layers.set_current_layer(opts.args)
   end, {

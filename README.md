@@ -89,6 +89,7 @@ This design allows you to organize annotations by purpose (review, issues, notes
 | `:FACreateLayer <name>` | Create a new annotation layer |
 | `:FADeleteLayer <name>` | Delete an annotation layer |
 | `:FARenameLayer <old> <new>` | Rename a layer |
+| `:FADuplicateLayer <source> <new>` | Duplicate a layer with all its labels |
 | `:FASetLayer <name>` | Set the current active layer |
 | `:FAToggleLayer <name>` | Show/hide a layer |
 | `:FAListLayers` | List all layers with status |
@@ -152,6 +153,9 @@ This design allows you to organize annotations by purpose (review, issues, notes
 
 \" Export to HTML
 :FAExportHTML my_review.html
+
+\" Layer duplication example
+:FADuplicateLayer review review_v2     \" Copy all labels from 'review' to 'review_v2'
 ```
 
 ### Code Review Workflow
@@ -268,6 +272,7 @@ require("file-annotator").setup({
 3. **Color coding** - Use similar colors for related concepts
 4. **Export regularly** - Create timestamped exports for historical tracking
 5. **Layer organization** - Keep related annotations in the same layer
+6. **Layer duplication** - Use `:FADuplicateLayer` to create variants (e.g., "review" → "review_v2") or template layers
 
 ## Contributing
 
