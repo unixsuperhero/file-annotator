@@ -216,14 +216,17 @@ vim.keymap.set("v", "<leader>as", ":FAAnnotateSelection ", { desc = "Annotate se
 
 ## HTML Export Features
 
-The HTML export creates a professional report with:
+The HTML export creates an interactive single-file report with:
 
-- **Color-coded lines** - Each annotation shows as background color
-- **Interactive legend** - Shows all layers and labels with colors
-- **Layer controls** - Toggle layer visibility in the export
-- **Gradient overlays** - Multiple annotations on same line create gradients
-- **Metadata** - Export timestamp and source file information
-- **Responsive design** - Works well on different screen sizes
+- **Interactive layer toggling** - Click layer buttons to show/hide any combination of layers
+- **Layer indicators** - Small colored dots show which layers have annotations on each line
+- **Distinct layer colors** - Each layer has its own distinct background color
+- **Multi-layer visualization** - See multiple layer annotations simultaneously without conflict
+- **Smart highlighting** - Lines with multiple layers show appropriate combined styling
+- **Export location** - Files are saved to your current working directory (pwd)
+- **Professional layout** - Clean, responsive design with clear visual hierarchy
+- **All/None controls** - Quickly toggle all layers on or off
+- **Real-time updates** - Layer visibility changes instantly without page reload
 
 ## Configuration
 

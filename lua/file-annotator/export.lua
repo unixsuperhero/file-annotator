@@ -13,7 +13,8 @@ function M.export_to_html(filename, options)
     filename = base_name .. "_annotated_" .. os.date("%Y%m%d_%H%M%S") .. ".html"
   end
 
-  local output_path = config.export_dir .. "/" .. filename
+  -- Export to current working directory instead of plugin data directory
+  local output_path = vim.fn.getcwd() .. "/" .. filename
 
   local html_content = M.generate_html(lines, current_file, options)
 
@@ -32,8 +33,9 @@ end
 
 function M.generate_html(lines, filename, options)
   local title = options.title or ("File Annotations: " .. vim.fn.fnamemodify(filename, ":t"))
-  local include_layers = options.layers or {}
-  local show_legend = options.show_legend ~= false
+
+  -- Get all layers and their colors
+  local layer_info = M.get_layer_info()
 
   local html = [[
 <!DOCTYPE html>
@@ -70,42 +72,83 @@ function M.generate_html(lines, filename, options)
             font-size: 12px;
             margin-top: 5px;
         }
-        .legend {
+        .layer-controls {
             margin-bottom: 20px;
             padding: 15px;
             background: #f9f9f9;
             border-radius: 5px;
             border: 1px solid #ddd;
         }
-        .legend h3 {
+        .layer-controls h3 {
             margin-top: 0;
+            margin-bottom: 10px;
             color: #333;
         }
-        .legend-layer {
-            margin-bottom: 10px;
-        }
-        .legend-layer-name {
-            font-weight: bold;
+        .layer-toggle {
+            display: inline-block;
+            margin-right: 10px;
             margin-bottom: 5px;
+            padding: 8px 12px;
+            border: 2px solid;
+            border-radius: 5px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        .layer-toggle.active {
+            transform: scale(0.95);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .legend {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            font-size: 11px;
         }
         .legend-item {
             display: inline-block;
-            margin-right: 15px;
-            margin-bottom: 5px;
-            padding: 3px 8px;
-            border-radius: 3px;
-            font-size: 11px;
+            margin-right: 12px;
+            margin-bottom: 3px;
+            padding: 2px 6px;
+            border-radius: 2px;
             color: white;
+            font-weight: bold;
         }
         .code-container {
             border: 1px solid #ddd;
             border-radius: 5px;
             overflow: auto;
+            font-size: 13px;
         }
         .line {
             display: flex;
-            min-height: 20px;
-            line-height: 20px;
+            min-height: 22px;
+            line-height: 22px;
+            position: relative;
+        }
+        .line:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+        .line-indicators {
+            width: 30px;
+            background: #f8f8f8;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            padding: 1px;
+        }
+        .layer-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin: 1px;
+            display: none;
         }
         .line-number {
             background: #f8f8f8;
@@ -122,29 +165,9 @@ function M.generate_html(lines, filename, options)
             white-space: pre;
             flex: 1;
             overflow-x: auto;
+            position: relative;
         }
-        .layer-controls {
-            margin-bottom: 15px;
-        }
-        .layer-toggle {
-            display: inline-block;
-            margin-right: 10px;
-            padding: 5px 10px;
-            background: #e9ecef;
-            border: 1px solid #adb5bd;
-            border-radius: 3px;
-            cursor: pointer;
-            user-select: none;
-            font-size: 12px;
-        }
-        .layer-toggle.active {
-            background: #007bff;
-            color: white;
-            border-color: #007bff;
-        }
-        .multiple-annotations {
-            background: linear-gradient(to right, ]] .. M.get_gradient_colors() .. [[);
-        }
+]] .. M.generate_layer_styles(layer_info) .. [[
     </style>
 </head>
 <body>
@@ -156,55 +179,24 @@ function M.generate_html(lines, filename, options)
                 Source: ]] .. filename .. [[
             </div>
         </div>
-]]
 
-  if show_legend then
-    html = html .. M.generate_legend(include_layers)
-  end
-
-  html = html .. M.generate_layer_controls() .. [[
-        <div class="code-container">
-]]
-
-  for i, line in ipairs(lines) do
-    local line_annotations = M.get_line_annotations_for_export(i, include_layers)
-    local line_class = ""
-    local inline_style = ""
-
-    if #line_annotations > 0 then
-      if #line_annotations == 1 then
-        inline_style = string.format(' style="background-color: %s; color: %s;"',
-          line_annotations[1].color,
-          M.get_contrasting_color(line_annotations[1].color))
-      else
-        line_class = " multiple-annotations"
-        inline_style = string.format(' style="background: %s;"', M.create_gradient(line_annotations))
-      end
-    end
-
-    html = html .. string.format([[
-            <div class="line%s"%s data-line="%d">
-                <div class="line-number">%d</div>
-                <div class="line-content">%s</div>
+        <div class="layer-controls">
+            <h3>Layer Controls</h3>
+            <div class="controls">
+]] .. M.generate_interactive_layer_controls(layer_info) .. [[
             </div>
-]], line_class, inline_style, i, i, M.escape_html(line))
-  end
+            <div class="legend">
+]] .. M.generate_interactive_legend(layer_info) .. [[
+            </div>
+        </div>
 
-  html = html .. [[
+        <div class="code-container">
+]] .. M.generate_interactive_lines(lines, layer_info) .. [[
         </div>
     </div>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const toggles = document.querySelectorAll('.layer-toggle');
-            toggles.forEach(toggle => {
-                toggle.addEventListener('click', function() {
-                    this.classList.toggle('active');
-                    const layer = this.dataset.layer;
-                    // Toggle layer visibility logic would go here
-                    // For now, this is just visual feedback
-                });
-            });
-        });
+]] .. M.generate_javascript(layer_info) .. [[
     </script>
 </body>
 </html>
@@ -353,6 +345,271 @@ function M.export_layer_stats()
   end
 
   return stats
+end
+
+function M.get_layer_info()
+  local layer_info = {}
+  local distinct_colors = {
+    "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
+    "#DDA0DD", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9",
+    "#FF8C94", "#A8E6CF", "#B4E5F1", "#C7CEEA", "#FFD93D"
+  }
+
+  local color_index = 1
+  for layer_name, layer in pairs(state.layers) do
+    layer_info[layer_name] = {
+      name = layer_name,
+      color = distinct_colors[color_index] or distinct_colors[1],
+      labels = {}
+    }
+
+    for label_name, label in pairs(layer.labels) do
+      layer_info[layer_name].labels[label_name] = {
+        name = label_name,
+        color = label.color
+      }
+    end
+
+    color_index = color_index + 1
+    if color_index > #distinct_colors then
+      color_index = 1
+    end
+  end
+
+  return layer_info
+end
+
+function M.generate_layer_styles(layer_info)
+  local styles = ""
+
+  for layer_name, layer in pairs(layer_info) do
+    -- Layer-specific background styles
+    styles = styles .. string.format([[
+        .line.layer-%s-active .line-content {
+            background-color: %s !important;
+            color: %s !important;
+        }
+        .layer-indicator.%s {
+            background-color: %s;
+        }
+        .layer-toggle[data-layer="%s"] {
+            background-color: %s;
+            border-color: %s;
+            color: %s;
+        }
+]],
+      layer_name,
+      layer.color .. "40", -- Add transparency
+      M.get_contrasting_color(layer.color),
+      layer_name,
+      layer.color,
+      layer_name,
+      layer.color .. "20", -- Light background
+      layer.color,
+      M.get_contrasting_color(layer.color)
+    )
+  end
+
+  return styles
+end
+
+function M.generate_interactive_layer_controls(layer_info)
+  local controls = ""
+
+  for layer_name, layer in pairs(layer_info) do
+    controls = controls .. string.format([[
+                <span class="layer-toggle" data-layer="%s">%s</span>
+]], layer_name, layer_name)
+  end
+
+  return controls
+end
+
+function M.generate_interactive_legend(layer_info)
+  local legend = ""
+
+  for layer_name, layer in pairs(layer_info) do
+    legend = legend .. string.format([[<strong>%s:</strong> ]], layer_name)
+
+    for label_name, label in pairs(layer.labels) do
+      legend = legend .. string.format([[<span class="legend-item" style="background-color: %s; color: %s;">%s</span>]],
+        label.color, M.get_contrasting_color(label.color), label_name)
+    end
+
+    legend = legend .. "<br>"
+  end
+
+  return legend
+end
+
+function M.generate_interactive_lines(lines, layer_info)
+  local html_lines = ""
+
+  for i, line in ipairs(lines) do
+    local line_annotations = M.get_all_line_annotations(i)
+
+    -- Generate layer indicators
+    local indicators = ""
+    for layer_name, _ in pairs(layer_info) do
+      indicators = indicators .. string.format([[<div class="layer-indicator %s" data-layer="%s"></div>]],
+        layer_name, layer_name)
+    end
+
+    -- Generate data attributes for each layer
+    local data_attrs = ""
+    local layer_classes = ""
+    for layer_name, annotations in pairs(line_annotations) do
+      if #annotations > 0 then
+        data_attrs = data_attrs .. string.format([[ data-%s-labels="%s"]],
+          layer_name, table.concat(vim.tbl_map(function(a) return a.label end, annotations), ","))
+        layer_classes = layer_classes .. " has-" .. layer_name
+      end
+    end
+
+    html_lines = html_lines .. string.format([[
+            <div class="line%s" data-line="%d"%s>
+                <div class="line-indicators">%s</div>
+                <div class="line-number">%d</div>
+                <div class="line-content">%s</div>
+            </div>
+]], layer_classes, i, data_attrs, indicators, i, M.escape_html(line))
+  end
+
+  return html_lines
+end
+
+function M.get_all_line_annotations(line_num)
+  local annotations_by_layer = {}
+
+  for layer_name, layer_annotations in pairs(state.annotations) do
+    annotations_by_layer[layer_name] = {}
+
+    for label_name, label_annotations in pairs(layer_annotations) do
+      if label_annotations[line_num] then
+        table.insert(annotations_by_layer[layer_name], {
+          layer = layer_name,
+          label = label_name,
+          color = state.layers[layer_name].labels[label_name].color
+        })
+      end
+    end
+  end
+
+  return annotations_by_layer
+end
+
+function M.generate_javascript(layer_info)
+  local layer_names = {}
+  for layer_name, _ in pairs(layer_info) do
+    table.insert(layer_names, '"' .. layer_name .. '"')
+  end
+
+  return string.format([[
+        const layers = [%s];
+        const activeLayers = new Set();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggles = document.querySelectorAll('.layer-toggle');
+
+            toggles.forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const layer = this.dataset.layer;
+
+                    if (activeLayers.has(layer)) {
+                        activeLayers.delete(layer);
+                        this.classList.remove('active');
+                    } else {
+                        activeLayers.add(layer);
+                        this.classList.add('active');
+                    }
+
+                    updateDisplay();
+                });
+            });
+
+            // Add "All" and "None" buttons
+            const controlsDiv = document.querySelector('.controls');
+            const allBtn = document.createElement('span');
+            allBtn.textContent = 'All';
+            allBtn.className = 'layer-toggle';
+            allBtn.style.backgroundColor = '#28a745';
+            allBtn.style.borderColor = '#28a745';
+            allBtn.style.color = 'white';
+            allBtn.addEventListener('click', function() {
+                activeLayers.clear();
+                layers.forEach(layer => activeLayers.add(layer));
+                toggles.forEach(t => t.classList.add('active'));
+                updateDisplay();
+            });
+
+            const noneBtn = document.createElement('span');
+            noneBtn.textContent = 'None';
+            noneBtn.className = 'layer-toggle';
+            noneBtn.style.backgroundColor = '#dc3545';
+            noneBtn.style.borderColor = '#dc3545';
+            noneBtn.style.color = 'white';
+            noneBtn.addEventListener('click', function() {
+                activeLayers.clear();
+                toggles.forEach(t => t.classList.remove('active'));
+                updateDisplay();
+            });
+
+            controlsDiv.appendChild(allBtn);
+            controlsDiv.appendChild(noneBtn);
+        });
+
+        function updateDisplay() {
+            const lines = document.querySelectorAll('.line');
+
+            lines.forEach(line => {
+                // Clear all layer-specific classes
+                layers.forEach(layer => {
+                    line.classList.remove('layer-' + layer + '-active');
+                });
+
+                // Hide all indicators
+                const indicators = line.querySelectorAll('.layer-indicator');
+                indicators.forEach(indicator => {
+                    indicator.style.display = 'none';
+                });
+
+                // Show indicators and apply styles for active layers
+                let hasActiveAnnotations = false;
+                activeLayers.forEach(layer => {
+                    const labels = line.getAttribute('data-' + layer + '-labels');
+                    if (labels && labels.length > 0) {
+                        hasActiveAnnotations = true;
+
+                        // Show indicator for this layer
+                        const indicator = line.querySelector('.layer-indicator.' + layer);
+                        if (indicator) {
+                            indicator.style.display = 'block';
+                        }
+
+                        // Apply layer styling
+                        line.classList.add('layer-' + layer + '-active');
+                    }
+                });
+
+                // Apply combined styling for multiple active layers
+                if (activeLayers.size > 1) {
+                    const activeLayersOnLine = [];
+                    activeLayers.forEach(layer => {
+                        const labels = line.getAttribute('data-' + layer + '-labels');
+                        if (labels && labels.length > 0) {
+                            activeLayersOnLine.push(layer);
+                        }
+                    });
+
+                    if (activeLayersOnLine.length > 1) {
+                        // Create gradient for multiple layers
+                        line.classList.remove(...activeLayersOnLine.map(l => 'layer-' + l + '-active'));
+                        // Add your gradient logic here if needed
+                    }
+                }
+            });
+        }
+]], table.concat(layer_names, ", "))
 end
 
 return M
