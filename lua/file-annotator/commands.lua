@@ -248,6 +248,27 @@ function M.setup()
     desc = "Quick setup with default layers and labels"
   })
 
+  -- Import/Export commands
+  vim.api.nvim_create_user_command("FAExportAnnotations", function(opts)
+    local filename = opts.args ~= "" and opts.args or nil
+    export.export_annotations_to_json(filename)
+  end, {
+    nargs = "?",
+    desc = "Export annotations to JSON file"
+  })
+
+  vim.api.nvim_create_user_command("FAImportAnnotations", function(opts)
+    if opts.args == "" then
+      vim.notify("Usage: FAImportAnnotations <filename>", vim.log.levels.ERROR)
+      return
+    end
+    export.import_annotations_from_json(opts.args)
+  end, {
+    nargs = 1,
+    complete = "file",
+    desc = "Import annotations from JSON file"
+  })
+
 end
 
 function M.complete_layers(arg_lead, cmd_line, cursor_pos)

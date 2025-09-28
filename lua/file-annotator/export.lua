@@ -631,4 +631,204 @@ function M.generate_javascript(layer_info)
 ]], table.concat(layer_names, ", "))
 end
 
+function M.export_annotations_to_json(filename)
+  local data = {
+    version = "1.0",
+    export_timestamp = os.time(),
+    export_date = os.date("%Y-%m-%d %H:%M:%S"),
+    layers = state.layers,
+    annotations = state.annotations,
+    layer_order = state.layer_order,
+    current_layer = state.current_layer
+  }
+
+  -- Default filename if not provided
+  if not filename then
+    filename = "annotations_" .. os.date("%Y%m%d_%H%M%S") .. ".json"
+  end
+
+  -- Export to current working directory
+  local output_path = vim.fn.getcwd() .. "/" .. filename
+
+  -- Convert data to JSON
+  local json_data = vim.fn.json_encode(data)
+
+  -- Write to file
+  local file = io.open(output_path, "w")
+  if not file then
+    vim.notify("Failed to create annotation export file: " .. output_path, vim.log.levels.ERROR)
+    return false
+  end
+
+  file:write(json_data)
+  file:close()
+
+  vim.notify("Annotations exported to: " .. output_path, vim.log.levels.INFO)
+  return output_path
+end
+
+function M.import_annotations_from_json(filename)
+  -- Check if file exists
+  local file = io.open(filename, "r")
+  if not file then
+    vim.notify("Annotation file not found: " .. filename, vim.log.levels.ERROR)
+    return false
+  end
+
+  local content = file:read("*a")
+  file:close()
+
+  -- Parse JSON
+  local success, data = pcall(vim.fn.json_decode, content)
+  if not success then
+    vim.notify("Failed to parse annotation file: " .. filename, vim.log.levels.ERROR)
+    return false
+  end
+
+  -- Validate data structure
+  if not data.layers or not data.annotations then
+    vim.notify("Invalid annotation file format: " .. filename, vim.log.levels.ERROR)
+    return false
+  end
+
+  -- Show import preview
+  local stats = M.get_import_stats(data)
+  local confirmation = vim.fn.confirm(
+    string.format("Import %d layers with %d total annotations?\n\nThis will replace current annotations.",
+                  stats.layer_count, stats.annotation_count),
+    "&Yes\n&No\n&Merge",
+    2
+  )
+
+  if confirmation == 2 then -- No
+    vim.notify("Import cancelled", vim.log.levels.INFO)
+    return false
+  elseif confirmation == 3 then -- Merge
+    return M.merge_annotations(data)
+  else -- Yes - Replace
+    return M.replace_annotations(data)
+  end
+end
+
+function M.get_import_stats(data)
+  local layer_count = vim.tbl_count(data.layers or {})
+  local annotation_count = 0
+
+  for _, layer_annotations in pairs(data.annotations or {}) do
+    for _, label_annotations in pairs(layer_annotations) do
+      annotation_count = annotation_count + vim.tbl_count(label_annotations)
+    end
+  end
+
+  return {
+    layer_count = layer_count,
+    annotation_count = annotation_count,
+    export_date = data.export_date or "Unknown"
+  }
+end
+
+function M.replace_annotations(data)
+  -- Clear current annotations
+  vim.api.nvim_buf_clear_namespace(0, -1, 0, -1)
+
+  -- Import layers
+  state.layers = data.layers or {}
+  state.annotations = data.annotations or {}
+  state.layer_order = data.layer_order or {}
+  state.current_layer = data.current_layer
+
+  -- Recreate namespaces
+  state.namespaces = {}
+  for layer_name, _ in pairs(state.layers) do
+    state.namespaces[layer_name] = vim.api.nvim_create_namespace("file_annotator_" .. layer_name)
+  end
+
+  -- Recreate highlight groups
+  for layer_name, layer in pairs(state.layers) do
+    for label_name, label in pairs(layer.labels) do
+      require("file-annotator.highlights").create_highlight_group(layer_name, label_name, label.color)
+    end
+  end
+
+  -- Refresh highlights
+  require("file-annotator.highlights").refresh_buffer()
+
+  local stats = M.get_import_stats(data)
+  vim.notify(string.format("Successfully imported %d layers with %d annotations (exported: %s)",
+                           stats.layer_count, stats.annotation_count, stats.export_date),
+             vim.log.levels.INFO)
+  return true
+end
+
+function M.merge_annotations(data)
+  local conflicts = 0
+  local imported = 0
+
+  -- Import layers (merge with existing)
+  for layer_name, imported_layer in pairs(data.layers or {}) do
+    if not state.layers[layer_name] then
+      -- New layer - import completely
+      state.layers[layer_name] = imported_layer
+      state.namespaces[layer_name] = vim.api.nvim_create_namespace("file_annotator_" .. layer_name)
+
+      -- Create highlight groups for new layer
+      for label_name, label in pairs(imported_layer.labels) do
+        require("file-annotator.highlights").create_highlight_group(layer_name, label_name, label.color)
+      end
+    else
+      -- Existing layer - merge labels
+      for label_name, label in pairs(imported_layer.labels) do
+        if not state.layers[layer_name].labels[label_name] then
+          state.layers[layer_name].labels[label_name] = label
+          require("file-annotator.highlights").create_highlight_group(layer_name, label_name, label.color)
+        end
+      end
+    end
+  end
+
+  -- Import annotations (merge with existing)
+  for layer_name, layer_annotations in pairs(data.annotations or {}) do
+    if not state.annotations[layer_name] then
+      state.annotations[layer_name] = layer_annotations
+    else
+      for label_name, label_annotations in pairs(layer_annotations) do
+        if not state.annotations[layer_name][label_name] then
+          state.annotations[layer_name][label_name] = label_annotations
+          imported = imported + vim.tbl_count(label_annotations)
+        else
+          -- Merge line annotations
+          for line_num, annotation in pairs(label_annotations) do
+            if not state.annotations[layer_name][label_name][line_num] then
+              state.annotations[layer_name][label_name][line_num] = annotation
+              imported = imported + 1
+            else
+              conflicts = conflicts + 1
+            end
+          end
+        end
+      end
+    end
+  end
+
+  -- Update layer order if empty
+  if not state.layer_order or #state.layer_order == 0 then
+    state.layer_order = data.layer_order or {}
+  end
+
+  -- Set current layer if none set
+  if not state.current_layer and data.current_layer then
+    state.current_layer = data.current_layer
+  end
+
+  -- Refresh highlights
+  require("file-annotator.highlights").refresh_buffer()
+
+  local message = string.format("Merge completed: %d annotations imported", imported)
+  if conflicts > 0 then
+    message = message .. string.format(", %d conflicts skipped", conflicts)
+  end
+  vim.notify(message, vim.log.levels.INFO)
+  return true
+end
+
 return M

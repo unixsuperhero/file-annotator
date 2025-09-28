@@ -121,6 +121,8 @@ This design allows you to organize annotations by purpose (review, issues, notes
 | Command | Description |
 |---------|-------------|
 | `:FAExportHTML [filename]` | Export annotations to HTML |
+| `:FAExportAnnotations [filename]` | Export annotations to JSON file |
+| `:FAImportAnnotations <filename>` | Import annotations from JSON file |
 | `:FAShowStats` | Show annotation statistics |
 | `:FAShowCurrentLayer` | Show only current layer highlights |
 | `:FAShowAllLayers` | Show all visible layer highlights |
@@ -214,6 +216,42 @@ This design allows you to organize annotations by purpose (review, issues, notes
 :'<,'>FAAnnotateSelection needs_work           \" Uses current layer
 ```
 
+### Import/Export Workflow
+
+```vim
+\" Export annotations to save your work
+:FAExportAnnotations my_review_session.json     \" Export to specific file
+:FAExportAnnotations                            \" Auto-generates timestamped filename
+
+\" Import annotations in a new vim session
+:FAImportAnnotations my_review_session.json     \" Interactive import with merge/replace options
+
+\" Typical cross-session workflow:
+\" Session 1: Review first part of codebase
+:FAAnnotate good review
+:FAAnnotate needs_work review
+:FAExportAnnotations part1_review.json
+
+\" Session 2: Load previous work and continue
+:FAImportAnnotations part1_review.json          \" Choose 'replace' to start fresh
+:FAAnnotate bug issues                          \" Continue with new annotations
+:FAExportAnnotations complete_review.json       \" Save updated state
+
+\" Team collaboration workflow:
+\" Team member A exports their review
+:FAExportAnnotations reviewer_a_feedback.json
+
+\" Team member B imports and adds their own layer
+:FAImportAnnotations reviewer_a_feedback.json   \" Choose 'merge' to combine
+:FAAnnotate performance issues                  \" Add new layer without conflicts
+:FAExportAnnotations combined_feedback.json     \" Export merged result
+```
+
+**Import Options:**
+- **Replace**: Completely replaces current annotations (recommended for loading saved sessions)
+- **Merge**: Combines with existing annotations (useful for team collaboration)
+- **Auto-conflict resolution**: Handles layer name conflicts by auto-renaming
+
 ## Key Mappings (Optional)
 
 Add these to your configuration for quick access:
@@ -274,12 +312,13 @@ require("file-annotator").setup({
 
 ## Use Cases
 
-- **Code Reviews** - Systematically review and annotate code
-- **Learning** - Mark different concepts while studying code
-- **Bug Hunting** - Track issues and their severity
-- **Documentation** - Create visual guides for codebases
-- **Teaching** - Prepare annotated examples for students
-- **Auditing** - Security or compliance reviews
+- **Code Reviews** - Systematically review and annotate code, save progress and resume later
+- **Learning** - Mark different concepts while studying code, export for future reference
+- **Bug Hunting** - Track issues and their severity, share findings with team via export
+- **Documentation** - Create visual guides for codebases, export for documentation
+- **Teaching** - Prepare annotated examples for students, share via JSON export
+- **Auditing** - Security or compliance reviews, maintain audit trail with exports
+- **Team Collaboration** - Share annotation sets between team members using import/export
 
 ## Tips
 
@@ -292,6 +331,9 @@ require("file-annotator").setup({
 7. **Layer navigation** - Use `:FANextLayer`/`:FAPreviousLayer` for quick switching between layers
 8. **Auto-naming** - Let `:FADuplicateLayer <source>` auto-generate names (layer2, layer3, etc.)
 9. **Layer ordering** - Use `:FAReorderLayers` to organize layers in logical order
+10. **Session persistence** - Use `:FAExportAnnotations` regularly to save your work across vim sessions
+11. **Team sharing** - Export annotation files for sharing reviews with team members
+12. **Import strategy** - Use "replace" mode when resuming your own work, "merge" when combining with others
 
 ## Contributing
 
