@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Annotations: file-annotator.lua</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .filename {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .metadata {
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .layer-controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .layer-controls h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .layer-toggle {
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 5px;
+            padding: 8px 12px;
+            border: 2px solid;
+            border-radius: 5px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        .layer-toggle.active {
+            transform: scale(0.95);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .legend {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        .legend-item {
+            display: inline-block;
+            margin-right: 12px;
+            margin-bottom: 3px;
+            padding: 2px 6px;
+            border-radius: 2px;
+            color: white;
+            font-weight: bold;
+        }
+        .code-container {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: auto;
+            font-size: 13px;
+        }
+        .line {
+            display: flex;
+            min-height: 22px;
+            line-height: 22px;
+            position: relative;
+        }
+        .line:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+        .line-indicators {
+            width: 30px;
+            background: #f8f8f8;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            padding: 1px;
+        }
+        .layer-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin: 1px;
+            display: none;
+        }
+        .line-number {
+            background: #f8f8f8;
+            color: #666;
+            padding: 0 10px;
+            text-align: right;
+            min-width: 50px;
+            border-right: 1px solid #ddd;
+            user-select: none;
+            flex-shrink: 0;
+        }
+        .line-content {
+            padding: 0 10px;
+            white-space: pre;
+            flex: 1;
+            overflow-x: auto;
+            position: relative;
+        }
+        .line.layer-flow-active .line-content {
+            background-color: #FF6B6B40 !important;
+            color: #000000 !important;
+        }
+        .layer-indicator.flow {
+            background-color: #FF6B6B;
+        }
+        .layer-toggle[data-layer="flow"] {
+            background-color: #FF6B6B20;
+            border-color: #FF6B6B;
+            color: #000000;
+        }
+        .line.layer-state-active .line-content {
+            background-color: #4ECDC440 !important;
+            color: #000000 !important;
+        }
+        .layer-indicator.state {
+            background-color: #4ECDC4;
+        }
+        .layer-toggle[data-layer="state"] {
+            background-color: #4ECDC420;
+            border-color: #4ECDC4;
+            color: #000000;
+        }
+        .line.layer-world-active .line-content {
+            background-color: #45B7D140 !important;
+            color: #000000 !important;
+        }
+        .layer-indicator.world {
+            background-color: #45B7D1;
+        }
+        .layer-toggle[data-layer="world"] {
+            background-color: #45B7D120;
+            border-color: #45B7D1;
+            color: #000000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="filename">file-annotator.lua</div>
+            <div class="metadata">
+                Exported on 2025-09-28 16:25:20<br>
+                Source: /Users/josh/proj/file-annotator/plugin/file-annotator.lua            </div>
+        </div>
+
+        <div class="layer-controls">
+            <h3>Layer Controls</h3>
+            <div style="font-size: 11px; color: #666; margin-bottom: 8px;">
+                Click to toggle layers • Shift+click to show only that layer
+            </div>
+            <div class="controls">
+                <span class="layer-toggle" data-layer="flow">flow</span>
+                <span class="layer-toggle" data-layer="state">state</span>
+                <span class="layer-toggle" data-layer="world">world</span>
+            </div>
+            <div class="legend">
+<strong>flow:</strong> <span class="legend-item" style="background-color: #FF6B6B; color: #000000;">conditional</span><span class="legend-item" style="background-color: #4ECDC4; color: #000000;">return</span><br><strong>state:</strong> <span class="legend-item" style="background-color: #FF6B6B; color: #000000;">setting</span><br><strong>world:</strong> <span class="legend-item" style="background-color: #FF6B6B; color: #000000;">fncall</span><br>            </div>
+        </div>
+
+        <div class="code-container">
+            <div class="line" data-line="1">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator state" data-layer="state"></div><div class="layer-indicator world" data-layer="world"></div></div>
+                <div class="line-number">1</div>
+                <div class="line-content">-- File Annotator Plugin Entry Point</div>
+            </div>
+            <div class="line" data-line="2">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator state" data-layer="state"></div><div class="layer-indicator world" data-layer="world"></div></div>
+                <div class="line-number">2</div>
+                <div class="line-content">-- This file ensures the plugin is loaded when Neovim starts</div>
+            </div>
+            <div class="line" data-line="3">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator state" data-layer="state"></div><div class="layer-indicator world" data-layer="world"></div></div>
+                <div class="line-number">3</div>
+                <div class="line-content"></div>
+            </div>
+            <div class="line has-flow" data-line="4" data-flow-labels="conditional">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator state" data-layer="state"></div><div class="layer-indicator world" data-layer="world"></div></div>
+                <div class="line-number">4</div>
+                <div class="line-content">if vim.g.loaded_file_annotator then</div>
+            </div>
+            <div class="line has-flow" data-line="5" data-flow-labels="return">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator state" data-layer="state"></div><div class="layer-indicator world" data-layer="world"></div></div>
+                <div class="line-number">5</div>
+                <div class="line-content">  return</div>
+            </div>
+            <div class="line" data-line="6">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator state" data-layer="state"></div><div class="layer-indicator world" data-layer="world"></div></div>
+                <div class="line-number">6</div>
+                <div class="line-content">end</div>
+            </div>
+            <div class="line has-state" data-line="7" data-state-labels="setting">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator state" data-layer="state"></div><div class="layer-indicator world" data-layer="world"></div></div>
+                <div class="line-number">7</div>
+                <div class="line-content">vim.g.loaded_file_annotator = 1</div>
+            </div>
+            <div class="line" data-line="8">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator state" data-layer="state"></div><div class="layer-indicator world" data-layer="world"></div></div>
+                <div class="line-number">8</div>
+                <div class="line-content"></div>
+            </div>
+            <div class="line" data-line="9">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator state" data-layer="state"></div><div class="layer-indicator world" data-layer="world"></div></div>
+                <div class="line-number">9</div>
+                <div class="line-content">-- Initialize the plugin</div>
+            </div>
+            <div class="line has-world" data-line="10" data-world-labels="fncall">
+                <div class="line-indicators"><div class="layer-indicator flow" data-layer="flow"></div><div class="layer-indicator state" data-layer="state"></div><div class="layer-indicator world" data-layer="world"></div></div>
+                <div class="line-number">10</div>
+                <div class="line-content">require(&quot;file-annotator&quot;).setup()</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const layers = ["flow", "state", "world"];
+        const activeLayers = new Set();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggles = document.querySelectorAll('.layer-toggle');
+
+            toggles.forEach(toggle => {
+                toggle.addEventListener('click', function(event) {
+                    const layer = this.dataset.layer;
+
+                    if (event.shiftKey) {
+                        // Shift+click: Turn on this layer and turn off all others
+                        activeLayers.clear();
+                        activeLayers.add(layer);
+
+                        // Update all toggle buttons
+                        toggles.forEach(t => {
+                            if (t.dataset.layer === layer) {
+                                t.classList.add('active');
+                            } else {
+                                t.classList.remove('active');
+                            }
+                        });
+                    } else {
+                        // Normal click: Toggle this layer
+                        if (activeLayers.has(layer)) {
+                            activeLayers.delete(layer);
+                            this.classList.remove('active');
+                        } else {
+                            activeLayers.add(layer);
+                            this.classList.add('active');
+                        }
+                    }
+
+                    updateDisplay();
+                });
+            });
+
+            // Add "All" and "None" buttons
+            const controlsDiv = document.querySelector('.controls');
+            const allBtn = document.createElement('span');
+            allBtn.textContent = 'All';
+            allBtn.className = 'layer-toggle';
+            allBtn.style.backgroundColor = '#28a745';
+            allBtn.style.borderColor = '#28a745';
+            allBtn.style.color = 'white';
+            allBtn.addEventListener('click', function() {
+                activeLayers.clear();
+                layers.forEach(layer => activeLayers.add(layer));
+                toggles.forEach(t => t.classList.add('active'));
+                updateDisplay();
+            });
+
+            const noneBtn = document.createElement('span');
+            noneBtn.textContent = 'None';
+            noneBtn.className = 'layer-toggle';
+            noneBtn.style.backgroundColor = '#dc3545';
+            noneBtn.style.borderColor = '#dc3545';
+            noneBtn.style.color = 'white';
+            noneBtn.addEventListener('click', function() {
+                activeLayers.clear();
+                toggles.forEach(t => t.classList.remove('active'));
+                updateDisplay();
+            });
+
+            controlsDiv.appendChild(allBtn);
+            controlsDiv.appendChild(noneBtn);
+        });
+
+        function updateDisplay() {
+            const lines = document.querySelectorAll('.line');
+
+            lines.forEach(line => {
+                // Clear all layer-specific classes
+                layers.forEach(layer => {
+                    line.classList.remove('layer-' + layer + '-active');
+                });
+
+                // Hide all indicators
+                const indicators = line.querySelectorAll('.layer-indicator');
+                indicators.forEach(indicator => {
+                    indicator.style.display = 'none';
+                });
+
+                // Show indicators and apply styles for active layers
+                let hasActiveAnnotations = false;
+                activeLayers.forEach(layer => {
+                    const labels = line.getAttribute('data-' + layer + '-labels');
+                    if (labels && labels.length > 0) {
+                        hasActiveAnnotations = true;
+
+                        // Show indicator for this layer
+                        const indicator = line.querySelector('.layer-indicator.' + layer);
+                        if (indicator) {
+                            indicator.style.display = 'block';
+                        }
+
+                        // Apply layer styling
+                        line.classList.add('layer-' + layer + '-active');
+                    }
+                });
+
+                // Apply combined styling for multiple active layers
+                if (activeLayers.size > 1) {
+                    const activeLayersOnLine = [];
+                    activeLayers.forEach(layer => {
+                        const labels = line.getAttribute('data-' + layer + '-labels');
+                        if (labels && labels.length > 0) {
+                            activeLayersOnLine.push(layer);
+                        }
+                    });
+
+                    if (activeLayersOnLine.length > 1) {
+                        // Create gradient for multiple layers
+                        line.classList.remove(...activeLayersOnLine.map(l => 'layer-' + l + '-active'));
+                        // Add your gradient logic here if needed
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

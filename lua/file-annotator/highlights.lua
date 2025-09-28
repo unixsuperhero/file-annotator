@@ -64,8 +64,16 @@ function M.refresh_buffer()
     local layer_annotations = state.annotations[state.current_layer]
     for label_name, label_annotations in pairs(layer_annotations) do
       for line_num, annotation in pairs(label_annotations) do
-        if annotation.bufnr == bufnr then
-          M.apply_highlight(state.current_layer, label_name, line_num)
+        -- Defensive check: ensure annotation is a table with expected fields
+        if type(annotation) == "table" and annotation.bufnr then
+          if annotation.bufnr == bufnr then
+            M.apply_highlight(state.current_layer, label_name, line_num)
+          end
+        else
+          -- Handle corrupted annotation data
+          vim.notify(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
+                                   state.current_layer, label_name, line_num), vim.log.levels.WARN)
+          label_annotations[line_num] = nil
         end
       end
     end
@@ -85,8 +93,16 @@ function M.refresh_buffer_all_layers()
     if state.layers[layer_name] and state.layers[layer_name].visible then
       for label_name, label_annotations in pairs(layer_annotations) do
         for line_num, annotation in pairs(label_annotations) do
-          if annotation.bufnr == bufnr then
-            M.apply_highlight(layer_name, label_name, line_num)
+          -- Defensive check: ensure annotation is a table with expected fields
+          if type(annotation) == "table" and annotation.bufnr then
+            if annotation.bufnr == bufnr then
+              M.apply_highlight(layer_name, label_name, line_num)
+            end
+          else
+            -- Handle corrupted annotation data
+            vim.notify(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
+                                     layer_name, label_name, line_num), vim.log.levels.WARN)
+            label_annotations[line_num] = nil
           end
         end
       end

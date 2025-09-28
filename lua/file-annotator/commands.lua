@@ -269,6 +269,13 @@ function M.setup()
     desc = "Import annotations from JSON file"
   })
 
+  -- Debugging/utility command
+  vim.api.nvim_create_user_command("FACleanupData", function()
+    M.cleanup_corrupted_annotations()
+  end, {
+    desc = "Clean up corrupted annotation data"
+  })
+
 end
 
 function M.complete_layers(arg_lead, cmd_line, cursor_pos)
@@ -383,6 +390,43 @@ function M.show_annotation_stats()
   end
 
   vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
+end
+
+function M.cleanup_corrupted_annotations()
+  local state = require("file-annotator").state
+  local cleaned = 0
+  local total = 0
+
+  for layer_name, layer_annotations in pairs(state.annotations or {}) do
+    for label_name, label_annotations in pairs(layer_annotations) do
+      for line_num, annotation in pairs(label_annotations) do
+        total = total + 1
+        -- Check if line_num is numeric and annotation is a proper table
+        if type(line_num) ~= "number" then
+          local numeric_line = tonumber(line_num)
+          if numeric_line and type(annotation) == "table" then
+            -- Fix string key to numeric key
+            label_annotations[numeric_line] = annotation
+            label_annotations[line_num] = nil
+            cleaned = cleaned + 1
+          else
+            -- Remove completely invalid data
+            label_annotations[line_num] = nil
+            cleaned = cleaned + 1
+          end
+        elseif type(annotation) ~= "table" or not annotation.bufnr then
+          -- Remove corrupted annotation data
+          label_annotations[line_num] = nil
+          cleaned = cleaned + 1
+        end
+      end
+    end
+  end
+
+  -- Refresh highlights after cleanup
+  require("file-annotator.highlights").refresh_buffer()
+
+  vim.notify(string.format("Cleanup complete: %d/%d annotations cleaned", cleaned, total), vim.log.levels.INFO)
 end
 
 function M.quick_setup()

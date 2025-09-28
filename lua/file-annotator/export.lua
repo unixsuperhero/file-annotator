@@ -727,13 +727,31 @@ function M.get_import_stats(data)
   }
 end
 
+-- Helper function to convert string line numbers back to numeric keys
+local function normalize_annotation_keys(annotations)
+  local normalized = {}
+  for layer_name, layer_annotations in pairs(annotations) do
+    normalized[layer_name] = {}
+    for label_name, label_annotations in pairs(layer_annotations) do
+      normalized[layer_name][label_name] = {}
+      for line_num_str, annotation in pairs(label_annotations) do
+        local line_num = tonumber(line_num_str)
+        if line_num and type(annotation) == "table" then
+          normalized[layer_name][label_name][line_num] = annotation
+        end
+      end
+    end
+  end
+  return normalized
+end
+
 function M.replace_annotations(data)
   -- Clear current annotations
   vim.api.nvim_buf_clear_namespace(0, -1, 0, -1)
 
   -- Import layers
   state.layers = data.layers or {}
-  state.annotations = data.annotations or {}
+  state.annotations = normalize_annotation_keys(data.annotations or {})
   state.layer_order = data.layer_order or {}
   state.current_layer = data.current_layer
 
@@ -786,10 +804,15 @@ function M.merge_annotations(data)
     end
   end
 
-  -- Import annotations (merge with existing)
-  for layer_name, layer_annotations in pairs(data.annotations or {}) do
+  -- Import annotations (merge with existing) - normalize keys first
+  local normalized_annotations = normalize_annotation_keys(data.annotations or {})
+  for layer_name, layer_annotations in pairs(normalized_annotations) do
     if not state.annotations[layer_name] then
       state.annotations[layer_name] = layer_annotations
+      -- Count all annotations in the new layer
+      for label_name, label_annotations in pairs(layer_annotations) do
+        imported = imported + vim.tbl_count(label_annotations)
+      end
     else
       for label_name, label_annotations in pairs(layer_annotations) do
         if not state.annotations[layer_name][label_name] then

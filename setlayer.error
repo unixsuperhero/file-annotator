@@ -1,0 +1,5 @@
+Error executing Lua callback: ...im/lazy/file-annotator/lua/file-annotator/highlights.lua:67: attempt to index local 'annotation' (a userdata value)
+stack traceback:
+        ...im/lazy/file-annotator/lua/file-annotator/highlights.lua:67: in function 'refresh_buffer'
+        ...e/nvim/lazy/file-annotator/lua/file-annotator/layers.lua:154: in function 'set_current_layer'
+        ...nvim/lazy/file-annotator/lua/file-annotator/commands.lua:50: in function <...nvim/lazy/file-annotator/lua/file-annotator/commands.lua:49>
