@@ -386,12 +386,8 @@ function M.generate_layer_styles(layer_info)
   local styles = ""
 
   for layer_name, layer in pairs(layer_info) do
-    -- Layer-specific background styles
+    -- Layer-specific indicator and toggle styles (use layer color for UI elements)
     styles = styles .. string.format([[
-        .line.layer-%s-active .line-content {
-            background-color: %s !important;
-            color: %s !important;
-        }
         .layer-indicator.%s {
             background-color: %s;
         }
@@ -401,9 +397,6 @@ function M.generate_layer_styles(layer_info)
             color: %s;
         }
 ]],
-      layer_name,
-      layer.color .. "40", -- Add transparency
-      M.get_contrasting_color(layer.color),
       layer_name,
       layer.color,
       layer_name,
@@ -458,24 +451,43 @@ function M.generate_interactive_lines(lines, layer_info)
         layer_name, layer_name)
     end
 
-    -- Generate data attributes for each layer
+    -- Generate data attributes and determine label colors for each layer
     local data_attrs = ""
     local layer_classes = ""
+    local layer_colors = {}
+
     for layer_name, annotations in pairs(line_annotations) do
       if #annotations > 0 then
+        local label_names = vim.tbl_map(function(a) return a.label end, annotations)
         data_attrs = data_attrs .. string.format([[ data-%s-labels="%s"]],
-          layer_name, table.concat(vim.tbl_map(function(a) return a.label end, annotations), ","))
+          layer_name, table.concat(label_names, ","))
         layer_classes = layer_classes .. " has-" .. layer_name
+
+        -- For each layer, use the first label's color (or blend if multiple)
+        -- For simplicity, we'll use the first label's color for now
+        if #annotations > 0 then
+          layer_colors[layer_name] = annotations[1].color
+        end
+      end
+    end
+
+    -- Generate inline styles for each layer's label colors
+    local style_attrs = ""
+    for layer_name, color in pairs(layer_colors) do
+      if style_attrs == "" then
+        style_attrs = string.format([[ data-%s-color="%s"]], layer_name, color)
+      else
+        style_attrs = style_attrs .. string.format([[ data-%s-color="%s"]], layer_name, color)
       end
     end
 
     html_lines = html_lines .. string.format([[
-            <div class="line%s" data-line="%d"%s>
+            <div class="line%s" data-line="%d"%s%s>
                 <div class="line-indicators">%s</div>
                 <div class="line-number">%d</div>
                 <div class="line-content">%s</div>
             </div>
-]], layer_classes, i, data_attrs, indicators, i, M.escape_html(line))
+]], layer_classes, i, data_attrs, style_attrs, indicators, i, M.escape_html(line))
   end
 
   return html_lines
@@ -594,6 +606,14 @@ function M.generate_javascript(layer_info)
 
                 // Show indicators and apply styles for active layers
                 let hasActiveAnnotations = false;
+                const lineContent = line.querySelector('.line-content');
+
+                // Reset inline styles
+                if (lineContent) {
+                    lineContent.style.backgroundColor = '';
+                    lineContent.style.color = '';
+                }
+
                 activeLayers.forEach(layer => {
                     const labels = line.getAttribute('data-' + layer + '-labels');
                     if (labels && labels.length > 0) {
@@ -605,27 +625,20 @@ function M.generate_javascript(layer_info)
                             indicator.style.display = 'block';
                         }
 
-                        // Apply layer styling
-                        line.classList.add('layer-' + layer + '-active');
+                        // Apply individual label color styling using data attributes
+                        const labelColor = line.getAttribute('data-' + layer + '-color');
+                        if (labelColor && lineContent) {
+                            // Apply the individual label's color
+                            lineContent.style.backgroundColor = labelColor + '40'; // Add transparency
+                            // Calculate contrasting text color
+                            const r = parseInt(labelColor.slice(1, 3), 16);
+                            const g = parseInt(labelColor.slice(3, 5), 16);
+                            const b = parseInt(labelColor.slice(5, 7), 16);
+                            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                            lineContent.style.color = luminance > 0.5 ? '#000000' : '#FFFFFF';
+                        }
                     }
                 });
-
-                // Apply combined styling for multiple active layers
-                if (activeLayers.size > 1) {
-                    const activeLayersOnLine = [];
-                    activeLayers.forEach(layer => {
-                        const labels = line.getAttribute('data-' + layer + '-labels');
-                        if (labels && labels.length > 0) {
-                            activeLayersOnLine.push(layer);
-                        }
-                    });
-
-                    if (activeLayersOnLine.length > 1) {
-                        // Create gradient for multiple layers
-                        line.classList.remove(...activeLayersOnLine.map(l => 'layer-' + l + '-active'));
-                        // Add your gradient logic here if needed
-                    }
-                }
             });
         }
 ]], table.concat(layer_names, ", "))
