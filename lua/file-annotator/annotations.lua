@@ -9,14 +9,18 @@ function M.annotate_line(line_num, label_name, layer_name)
     return false
   end
 
+  -- Auto-create layer if it doesn't exist
   if not state.layers[layer_name] then
-    vim.notify("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
-    return false
+    local layers = require("file-annotator.layers")
+    layers.create_layer(layer_name)
+    vim.notify("Auto-created layer: " .. layer_name, vim.log.levels.INFO)
   end
 
+  -- Auto-create label if it doesn't exist
   if not state.layers[layer_name].labels[label_name] then
-    vim.notify("Label '" .. label_name .. "' does not exist in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
-    return false
+    local layers = require("file-annotator.layers")
+    layers.add_label(layer_name, label_name)
+    vim.notify("Auto-created label '" .. label_name .. "' in layer '" .. layer_name .. "'", vim.log.levels.INFO)
   end
 
   if not state.annotations[layer_name] then

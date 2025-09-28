@@ -45,9 +45,24 @@ use {
 
 ## Quick Start
 
+### Auto-Create Workflow (Recommended)
+1. **Start annotating immediately**: `:FAAnnotate good review` (creates both label and layer)
+2. **Continue annotating**: `:FAAnnotate bug issues`, `:FAAnnotate todo notes`
+3. **Export to HTML**: `:FAExportHTML` to generate a report
+
+### Traditional Workflow
 1. **Quick Setup**: Run `:FAQuickSetup` to create default layers and labels
 2. **Annotate a line**: Place cursor on a line and run `:FAAnnotate good`
 3. **Export to HTML**: Run `:FAExportHTML` to generate a report
+
+## Auto-Creation Feature
+
+The plugin automatically creates layers and labels when they don't exist:
+
+- `:FAAnnotate <label> <layer>` - Creates both label and layer if needed
+- `:FAAnnotateSelection <label> <layer>` - Same for selected lines
+- Auto-assigns colors from the default color palette
+- Notifies you when new items are created
 
 ## Commands
 
@@ -74,10 +89,10 @@ use {
 
 | Command | Description |
 |---------|-------------|
-| `:FAAnnotate <label>` | Annotate current line with label |
+| `:FAAnnotate <label> [layer]` | Annotate current line with label (auto-creates if needed) |
 | `:FARemoveAnnotation <label>` | Remove annotation from current line |
 | `:FAToggleAnnotation <label>` | Toggle annotation on current line |
-| `:FAAnnotateSelection <label>` | Annotate selected lines (visual mode) |
+| `:FAAnnotateSelection <label> [layer]` | Annotate selected lines (auto-creates if needed) |
 | `:FAClearLayer [layer]` | Clear all annotations in layer |
 
 ### Export & Info
@@ -93,6 +108,14 @@ use {
 ### Basic Workflow
 
 ```vim
+\" Auto-create workflow (recommended)
+\" Directly annotate with layer specification - creates both label and layer if needed
+:FAAnnotate good review
+:FAAnnotate needs_work review
+:FAAnnotate bug issues
+:FAAnnotate security issues
+
+\" Manual workflow (traditional)
 \" Create layers for different purposes
 :FACreateLayer review
 :FACreateLayer issues
@@ -104,14 +127,9 @@ use {
 :FAAddLabel needs_work #FF6B6B
 :FAAddLabel unclear #FFEAA7
 
-\" Annotate some lines
+\" Annotate some lines (uses current layer)
 :FAAnnotate good
 :FAAnnotate needs_work
-
-\" Switch to issues layer
-:FASetLayer issues
-:FAAddLabel bug #FF4757
-:FAAnnotate bug
 
 \" Export to HTML
 :FAExportHTML my_review.html
@@ -120,33 +138,40 @@ use {
 ### Code Review Workflow
 
 ```vim
-\" Quick setup creates review, issues, and notes layers
-:FAQuickSetup
+\" Simple auto-create workflow (no setup needed!)
+\" Just start annotating - layers and labels are created automatically
+:FAAnnotate good review          \" Mark good code in review layer
+:FAAnnotate needs_work review    \" Mark code that needs improvement
+:FAAnnotate unclear review       \" Mark unclear sections
 
-\" Review code line by line
-:FAAnnotate good          \" Mark good code
-:FAAnnotate needs_work    \" Mark code that needs improvement
-:FAAnnotate unclear       \" Mark unclear sections
+:FAAnnotate bug issues           \" Mark bugs in issues layer
+:FAAnnotate security issues      \" Mark security issues
 
-\" Switch to issues layer to mark problems
-:FASetLayer issues
-:FAAnnotate bug           \" Mark bugs
-:FAAnnotate security      \" Mark security issues
-
-\" Add notes
-:FASetLayer notes
-:FAAnnotate important     \" Mark important sections
-:FAAnnotate todo          \" Mark TODO items
+:FAAnnotate important notes      \" Mark important sections in notes layer
+:FAAnnotate todo notes           \" Mark TODO items
 
 \" Export comprehensive review
 :FAExportHTML code_review_2024_01_15.html
+
+\" Alternative: Traditional workflow with setup
+:FAQuickSetup
+
+\" Set layer before annotating (uses current layer)
+:FASetLayer review
+:FAAnnotate good
+:FAAnnotate needs_work
+
+:FASetLayer issues
+:FAAnnotate bug
+:FAAnnotate security
 ```
 
 ### Multi-line Annotation
 
 ```vim
 \" Select multiple lines in visual mode, then:
-:'<,'>FAAnnotateSelection needs_work
+:'<,'>FAAnnotateSelection needs_work review    \" With layer specification
+:'<,'>FAAnnotateSelection needs_work           \" Uses current layer
 ```
 
 ## Key Mappings (Optional)

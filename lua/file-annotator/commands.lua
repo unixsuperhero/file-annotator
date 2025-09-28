@@ -94,16 +94,21 @@ function M.setup()
   -- Annotation commands
   vim.api.nvim_create_user_command("FAAnnotate", function(opts)
     local line_num = vim.fn.line(".")
-    local label_name = opts.args
-    if label_name == "" then
-      vim.notify("Usage: FAAnnotate <label_name>", vim.log.levels.ERROR)
+    local args = vim.split(opts.args, " ", { plain = true })
+
+    if #args < 1 or #args > 2 then
+      vim.notify("Usage: FAAnnotate <label_name> [layer_name]", vim.log.levels.ERROR)
       return
     end
-    annotations.annotate_line(line_num, label_name)
+
+    local label_name = args[1]
+    local layer_name = args[2] -- nil if not provided
+
+    annotations.annotate_line(line_num, label_name, layer_name)
   end, {
-    nargs = 1,
-    complete = M.complete_labels,
-    desc = "Annotate current line"
+    nargs = "+",
+    complete = M.complete_label_and_layer,
+    desc = "Annotate current line with label and optional layer"
   })
 
   vim.api.nvim_create_user_command("FARemoveAnnotation", function(opts)
@@ -145,17 +150,22 @@ function M.setup()
 
   -- Visual mode annotation
   vim.api.nvim_create_user_command("FAAnnotateSelection", function(opts)
-    local label_name = opts.args
-    if label_name == "" then
-      vim.notify("Usage: FAAnnotateSelection <label_name>", vim.log.levels.ERROR)
+    local args = vim.split(opts.args, " ", { plain = true })
+
+    if #args < 1 or #args > 2 then
+      vim.notify("Usage: FAAnnotateSelection <label_name> [layer_name]", vim.log.levels.ERROR)
       return
     end
-    annotations.annotate_selection(label_name)
+
+    local label_name = args[1]
+    local layer_name = args[2] -- nil if not provided
+
+    annotations.annotate_selection(label_name, layer_name)
   end, {
-    nargs = 1,
-    complete = M.complete_labels,
+    nargs = "+",
+    complete = M.complete_label_and_layer,
     range = true,
-    desc = "Annotate selected lines"
+    desc = "Annotate selected lines with label and optional layer"
   })
 
   -- Export commands
@@ -205,6 +215,40 @@ function M.complete_labels(arg_lead, cmd_line, cursor_pos)
     end
   end
   return label_names
+end
+
+function M.complete_label_and_layer(arg_lead, cmd_line, cursor_pos)
+  local state = require("file-annotator").state
+  local args = vim.split(cmd_line, " ", { plain = true })
+
+  -- Remove the command name
+  table.remove(args, 1)
+
+  -- If we're completing the first argument (label), show all labels from all layers
+  if #args <= 1 then
+    local label_names = {}
+    for layer_name, layer in pairs(state.layers) do
+      for label_name, _ in pairs(layer.labels) do
+        if vim.startswith(label_name, arg_lead) and not vim.tbl_contains(label_names, label_name) then
+          table.insert(label_names, label_name)
+        end
+      end
+    end
+    return label_names
+  end
+
+  -- If we're completing the second argument (layer), show all layer names
+  if #args == 2 then
+    local layer_names = {}
+    for name, _ in pairs(state.layers) do
+      if vim.startswith(name, arg_lead) then
+        table.insert(layer_names, name)
+      end
+    end
+    return layer_names
+  end
+
+  return {}
 end
 
 function M.show_layers_info()
