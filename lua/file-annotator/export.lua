@@ -352,30 +352,64 @@ end
 
 function M.get_layer_info()
   local layer_info = {}
+
+  -- Expanded color palette for better distinction
   local distinct_colors = {
     "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
     "#DDA0DD", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9",
-    "#FF8C94", "#A8E6CF", "#B4E5F1", "#C7CEEA", "#FFD93D"
+    "#FF8C94", "#A8E6CF", "#B4E5F1", "#C7CEEA", "#FFD93D",
+    "#FF5722", "#009688", "#3F51B5", "#8BC34A", "#FFC107",
+    "#E91E63", "#00BCD4", "#673AB7", "#4CAF50", "#FF9800",
+    "#9C27B0", "#2196F3", "#795548", "#CDDC39", "#607D8B"
   }
 
-  local color_index = 1
+  -- First, collect all labels across all layers to assign distinct colors globally
+  local all_labels = {}
+  local all_layers = {}
+
+  for layer_name, layer in pairs(state.layers) do
+    table.insert(all_layers, layer_name)
+    for label_name, _ in pairs(layer.labels) do
+      table.insert(all_labels, {layer = layer_name, label = label_name})
+    end
+  end
+
+  -- Sort for consistent color assignment
+  table.sort(all_layers)
+  table.sort(all_labels, function(a, b)
+    if a.layer == b.layer then
+      return a.label < b.label
+    end
+    return a.layer < b.layer
+  end)
+
+  -- Assign distinct colors to layers (using every 5th color to ensure distinction)
+  local layer_colors = {}
+  for i, layer_name in ipairs(all_layers) do
+    local color_index = ((i - 1) * 5 % #distinct_colors) + 1
+    layer_colors[layer_name] = distinct_colors[color_index]
+  end
+
+  -- Assign distinct colors to all labels globally
+  local label_colors = {}
+  for i, label_info in ipairs(all_labels) do
+    local color_index = (i - 1) % #distinct_colors + 1
+    label_colors[label_info.layer .. ":" .. label_info.label] = distinct_colors[color_index]
+  end
+
+  -- Build layer_info with globally assigned colors
   for layer_name, layer in pairs(state.layers) do
     layer_info[layer_name] = {
       name = layer_name,
-      color = distinct_colors[color_index] or distinct_colors[1],
+      color = layer_colors[layer_name],
       labels = {}
     }
 
     for label_name, label in pairs(layer.labels) do
       layer_info[layer_name].labels[label_name] = {
         name = label_name,
-        color = label.color
+        color = label_colors[layer_name .. ":" .. label_name]
       }
-    end
-
-    color_index = color_index + 1
-    if color_index > #distinct_colors then
-      color_index = 1
     end
   end
 
@@ -459,25 +493,24 @@ function M.generate_interactive_lines(lines, layer_info)
     for layer_name, annotations in pairs(line_annotations) do
       if #annotations > 0 then
         local label_names = vim.tbl_map(function(a) return a.label end, annotations)
+        local label_colors = vim.tbl_map(function(a) return a.color end, annotations)
+
         data_attrs = data_attrs .. string.format([[ data-%s-labels="%s"]],
           layer_name, table.concat(label_names, ","))
         layer_classes = layer_classes .. " has-" .. layer_name
 
-        -- For each layer, use the first label's color (or blend if multiple)
-        -- For simplicity, we'll use the first label's color for now
-        if #annotations > 0 then
-          layer_colors[layer_name] = annotations[1].color
-        end
+        -- Store all colors for this layer (comma-separated for multiple labels)
+        layer_colors[layer_name] = table.concat(label_colors, ",")
       end
     end
 
     -- Generate inline styles for each layer's label colors
     local style_attrs = ""
-    for layer_name, color in pairs(layer_colors) do
+    for layer_name, colors in pairs(layer_colors) do
       if style_attrs == "" then
-        style_attrs = string.format([[ data-%s-color="%s"]], layer_name, color)
+        style_attrs = string.format([[ data-%s-colors="%s"]], layer_name, colors)
       else
-        style_attrs = style_attrs .. string.format([[ data-%s-color="%s"]], layer_name, color)
+        style_attrs = style_attrs .. string.format([[ data-%s-colors="%s"]], layer_name, colors)
       end
     end
 
@@ -626,16 +659,26 @@ function M.generate_javascript(layer_info)
                         }
 
                         // Apply individual label color styling using data attributes
-                        const labelColor = line.getAttribute('data-' + layer + '-color');
-                        if (labelColor && lineContent) {
-                            // Apply the individual label's color
-                            lineContent.style.backgroundColor = labelColor + '40'; // Add transparency
-                            // Calculate contrasting text color
-                            const r = parseInt(labelColor.slice(1, 3), 16);
-                            const g = parseInt(labelColor.slice(3, 5), 16);
-                            const b = parseInt(labelColor.slice(5, 7), 16);
-                            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-                            lineContent.style.color = luminance > 0.5 ? '#000000' : '#FFFFFF';
+                        const labelColors = line.getAttribute('data-' + layer + '-colors');
+                        if (labelColors && lineContent) {
+                            const colors = labelColors.split(',');
+
+                            if (colors.length === 1) {
+                                // Single color - apply directly
+                                const color = colors[0];
+                                lineContent.style.backgroundColor = color + '40'; // Add transparency
+                                // Calculate contrasting text color
+                                const r = parseInt(color.slice(1, 3), 16);
+                                const g = parseInt(color.slice(3, 5), 16);
+                                const b = parseInt(color.slice(5, 7), 16);
+                                const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                                lineContent.style.color = luminance > 0.5 ? '#000000' : '#FFFFFF';
+                            } else {
+                                // Multiple colors - create gradient
+                                const gradientColors = colors.map(color => color + '40').join(', ');
+                                lineContent.style.background = 'linear-gradient(90deg, ' + gradientColors + ')';
+                                lineContent.style.color = '#000000'; // Use black text for gradients
+                            }
                         }
                     }
                 });
