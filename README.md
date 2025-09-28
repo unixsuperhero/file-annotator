@@ -89,9 +89,12 @@ This design allows you to organize annotations by purpose (review, issues, notes
 | `:FACreateLayer <name>` | Create a new annotation layer |
 | `:FADeleteLayer <name>` | Delete an annotation layer |
 | `:FARenameLayer <old> <new>` | Rename a layer |
-| `:FADuplicateLayer <source> <new>` | Duplicate a layer with all its labels |
+| `:FADuplicateLayer <source> [new]` | Duplicate a layer with all its labels (auto-names if no name) |
 | `:FASetLayer <name>` | Set the current active layer |
+| `:FAPreviousLayer` | Switch to previous layer in order |
+| `:FANextLayer` | Switch to next layer in order |
 | `:FAToggleLayer <name>` | Show/hide a layer |
+| `:FAReorderLayers` | Open buffer to reorder layers |
 | `:FAListLayers` | List all layers with status |
 
 ### Label Management
@@ -121,6 +124,7 @@ This design allows you to organize annotations by purpose (review, issues, notes
 | `:FAShowStats` | Show annotation statistics |
 | `:FAShowCurrentLayer` | Show only current layer highlights |
 | `:FAShowAllLayers` | Show all visible layer highlights |
+| `:FACommitAndPush [message]` | Commit changes and push to remote git repo |
 | `:FAQuickSetup` | Quick setup with default layers |
 
 ## Usage Examples
@@ -154,8 +158,19 @@ This design allows you to organize annotations by purpose (review, issues, notes
 \" Export to HTML
 :FAExportHTML my_review.html
 
-\" Layer duplication example
+\" Layer duplication examples
 :FADuplicateLayer review review_v2     \" Copy all labels from 'review' to 'review_v2'
+:FADuplicateLayer review               \" Auto-generates name like 'layer2'
+
+\" Layer navigation
+:FANextLayer                           \" Switch to next layer in order
+:FAPreviousLayer                       \" Switch to previous layer in order
+
+\" Layer reordering
+:FAReorderLayers                       \" Opens buffer to reorder layers
+
+\" Git integration
+:FACommitAndPush "Add code review annotations"   \" Commit and push changes
 ```
 
 ### Code Review Workflow
@@ -216,6 +231,14 @@ vim.keymap.set("n", "<leader>aa", ":FAAnnotate ", { desc = "Annotate line" })
 vim.keymap.set("n", "<leader>al", ":FAListLayers<CR>", { desc = "List layers" })
 vim.keymap.set("n", "<leader>ae", ":FAExportHTML<CR>", { desc = "Export HTML" })
 vim.keymap.set("v", "<leader>as", ":FAAnnotateSelection ", { desc = "Annotate selection" })
+
+-- Layer navigation
+vim.keymap.set("n", "<leader>an", ":FANextLayer<CR>", { desc = "Next layer" })
+vim.keymap.set("n", "<leader>ap", ":FAPreviousLayer<CR>", { desc = "Previous layer" })
+vim.keymap.set("n", "<leader>ar", ":FAReorderLayers<CR>", { desc = "Reorder layers" })
+
+-- Git integration
+vim.keymap.set("n", "<leader>ag", ":FACommitAndPush<CR>", { desc = "Commit and push" })
 ```
 
 ## HTML Export Features
@@ -273,6 +296,10 @@ require("file-annotator").setup({
 4. **Export regularly** - Create timestamped exports for historical tracking
 5. **Layer organization** - Keep related annotations in the same layer
 6. **Layer duplication** - Use `:FADuplicateLayer` to create variants (e.g., "review" → "review_v2") or template layers
+7. **Layer navigation** - Use `:FANextLayer`/`:FAPreviousLayer` for quick switching between layers
+8. **Auto-naming** - Let `:FADuplicateLayer <source>` auto-generate names (layer2, layer3, etc.)
+9. **Layer ordering** - Use `:FAReorderLayers` to organize layers in logical order
+10. **Git integration** - Use `:FACommitAndPush` to save annotation work to version control
 
 ## Contributing
 

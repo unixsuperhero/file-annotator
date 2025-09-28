@@ -97,9 +97,19 @@ function M.duplicate_layer(source_name, new_name)
     return false
   end
 
+  -- Auto-generate name if not provided
   if not new_name or new_name == "" then
-    vim.notify("New layer name cannot be empty", vim.log.levels.ERROR)
-    return false
+    local layer_count = vim.tbl_count(state.layers)
+    local base_name = "layer"
+    local index = layer_count + 1
+
+    -- Find next available layerN name
+    repeat
+      new_name = base_name .. index
+      index = index + 1
+    until not state.layers[new_name]
+
+    vim.notify("Auto-generated name: " .. new_name, vim.log.levels.INFO)
   end
 
   if state.layers[new_name] then
@@ -278,6 +288,197 @@ function M.rename_label(layer_name, old_name, new_name)
 
   vim.notify("Renamed label '" .. old_name .. "' to '" .. new_name .. "' in layer '" .. layer_name .. "'", vim.log.levels.INFO)
   return true
+end
+
+function M.get_ordered_layer_names()
+  -- Get layer names in a consistent order
+  if not state.layer_order then
+    -- Initialize layer order with current layers
+    state.layer_order = {}
+    for name, _ in pairs(state.layers) do
+      table.insert(state.layer_order, name)
+    end
+    table.sort(state.layer_order)
+  end
+
+  -- Remove non-existent layers from order
+  local valid_order = {}
+  for _, name in ipairs(state.layer_order) do
+    if state.layers[name] then
+      table.insert(valid_order, name)
+    end
+  end
+
+  -- Add any new layers not in the order
+  for name, _ in pairs(state.layers) do
+    if not vim.tbl_contains(valid_order, name) then
+      table.insert(valid_order, name)
+    end
+  end
+
+  state.layer_order = valid_order
+  return valid_order
+end
+
+function M.get_current_layer_index()
+  if not state.current_layer then
+    return nil
+  end
+
+  local ordered_layers = M.get_ordered_layer_names()
+  for i, name in ipairs(ordered_layers) do
+    if name == state.current_layer then
+      return i
+    end
+  end
+  return nil
+end
+
+function M.switch_to_previous_layer()
+  local ordered_layers = M.get_ordered_layer_names()
+  if #ordered_layers <= 1 then
+    vim.notify("No other layers to switch to", vim.log.levels.WARN)
+    return false
+  end
+
+  local current_index = M.get_current_layer_index()
+  if not current_index then
+    -- No current layer, switch to first
+    return M.set_current_layer(ordered_layers[1])
+  end
+
+  local prev_index = current_index - 1
+  if prev_index < 1 then
+    prev_index = #ordered_layers -- Wrap to last layer
+  end
+
+  return M.set_current_layer(ordered_layers[prev_index])
+end
+
+function M.switch_to_next_layer()
+  local ordered_layers = M.get_ordered_layer_names()
+  if #ordered_layers <= 1 then
+    vim.notify("No other layers to switch to", vim.log.levels.WARN)
+    return false
+  end
+
+  local current_index = M.get_current_layer_index()
+  if not current_index then
+    -- No current layer, switch to first
+    return M.set_current_layer(ordered_layers[1])
+  end
+
+  local next_index = current_index + 1
+  if next_index > #ordered_layers then
+    next_index = 1 -- Wrap to first layer
+  end
+
+  return M.set_current_layer(ordered_layers[next_index])
+end
+
+function M.reorder_layers(new_order)
+  -- Validate that all layers in new_order exist
+  for _, name in ipairs(new_order) do
+    if not state.layers[name] then
+      vim.notify("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
+      return false
+    end
+  end
+
+  -- Ensure all existing layers are included
+  local existing_layers = {}
+  for name, _ in pairs(state.layers) do
+    existing_layers[name] = true
+  end
+
+  for _, name in ipairs(new_order) do
+    existing_layers[name] = nil
+  end
+
+  -- Add any missing layers to the end
+  for name, _ in pairs(existing_layers) do
+    table.insert(new_order, name)
+  end
+
+  state.layer_order = new_order
+  vim.notify("Layer order updated", vim.log.levels.INFO)
+  return true
+end
+
+function M.open_layer_reorder_buffer()
+  local ordered_layers = M.get_ordered_layer_names()
+
+  -- Create a new buffer
+  local buf = vim.api.nvim_create_buf(false, true)
+
+  -- Set buffer content with instructions and layer list
+  local content = {
+    "# File Annotator - Layer Reordering",
+    "# ",
+    "# Instructions:",
+    "# - Reorder the layers below by moving the lines",
+    "# - Save and close this buffer to apply the new order",
+    "# - Each line should contain exactly one layer name",
+    "# ",
+    "# Current layer order:",
+    ""
+  }
+
+  for i, name in ipairs(ordered_layers) do
+    local marker = (name == state.current_layer) and " (current)" or ""
+    table.insert(content, name .. marker)
+  end
+
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+
+  -- Open buffer in a new window
+  vim.cmd("split")
+  vim.api.nvim_win_set_buf(0, buf)
+
+  -- Set buffer options
+  vim.api.nvim_buf_set_option(buf, "filetype", "conf")
+  vim.api.nvim_buf_set_option(buf, "buftype", "acwrite")
+  vim.api.nvim_buf_set_name(buf, "Layer Order")
+
+  -- Set up autocommand to handle saving
+  vim.api.nvim_create_autocmd("BufWriteCmd", {
+    buffer = buf,
+    callback = function()
+      M.process_layer_reorder_buffer(buf)
+    end,
+    desc = "Process layer reorder buffer"
+  })
+
+  vim.notify("Edit layer order and save to apply changes", vim.log.levels.INFO)
+end
+
+function M.process_layer_reorder_buffer(buf)
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local new_order = {}
+
+  -- Extract layer names from lines (skip comments and empty lines)
+  for _, line in ipairs(lines) do
+    line = vim.trim(line)
+    if line ~= "" and not vim.startswith(line, "#") then
+      -- Remove any annotations like " (current)"
+      local layer_name = line:match("^([^%s%(]+)")
+      if layer_name and state.layers[layer_name] then
+        table.insert(new_order, layer_name)
+      end
+    end
+  end
+
+  if #new_order == 0 then
+    vim.notify("No valid layer names found in buffer", vim.log.levels.ERROR)
+    return
+  end
+
+  -- Apply the new order
+  if M.reorder_layers(new_order) then
+    vim.api.nvim_buf_set_option(buf, "modified", false)
+    vim.cmd("bdelete")
+    vim.notify("Layer order applied successfully", vim.log.levels.INFO)
+  end
 end
 
 return M
