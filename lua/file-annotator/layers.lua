@@ -29,12 +29,12 @@ end
 
 function M.create_layer(name)
   if not name or name == "" then
-    silent_message("Layer name cannot be empty", vim.log.levels.ERROR)
+    vim.notify("Layer name cannot be empty", vim.log.levels.ERROR)
     return false
   end
 
   if state.layers[name] then
-    silent_message("Layer '" .. name .. "' already exists", vim.log.levels.WARN)
+    vim.notify("Layer '" .. name .. "' already exists", vim.log.levels.WARN)
     return false
   end
 
@@ -56,7 +56,7 @@ end
 
 function M.delete_layer(name)
   if not state.layers[name] then
-    silent_message("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
+    vim.notify("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
@@ -84,12 +84,12 @@ end
 
 function M.rename_layer(old_name, new_name)
   if not state.layers[old_name] then
-    silent_message("Layer '" .. old_name .. "' does not exist", vim.log.levels.ERROR)
+    vim.notify("Layer '" .. old_name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
   if state.layers[new_name] then
-    silent_message("Layer '" .. new_name .. "' already exists", vim.log.levels.ERROR)
+    vim.notify("Layer '" .. new_name .. "' already exists", vim.log.levels.ERROR)
     return false
   end
 
@@ -118,7 +118,7 @@ end
 
 function M.duplicate_layer(source_name, new_name)
   if not state.layers[source_name] then
-    silent_message("Layer '" .. source_name .. "' does not exist", vim.log.levels.ERROR)
+    vim.notify("Layer '" .. source_name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
@@ -138,7 +138,7 @@ function M.duplicate_layer(source_name, new_name)
   end
 
   if state.layers[new_name] then
-    silent_message("Layer '" .. new_name .. "' already exists", vim.log.levels.ERROR)
+    vim.notify("Layer '" .. new_name .. "' already exists", vim.log.levels.ERROR)
     return false
   end
 
@@ -171,7 +171,7 @@ end
 
 function M.set_current_layer(name)
   if not state.layers[name] then
-    silent_message("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
+    vim.notify("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
@@ -183,7 +183,7 @@ end
 
 function M.toggle_layer_visibility(name)
   if not state.layers[name] then
-    silent_message("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
+    vim.notify("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
@@ -214,17 +214,17 @@ function M.add_label(layer_name, label_name, color)
   layer_name = layer_name or state.current_layer
 
   if not state.layers[layer_name] then
-    silent_message("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
+    vim.notify("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
   if not label_name or label_name == "" then
-    silent_message("Label name cannot be empty", vim.log.levels.ERROR)
+    vim.notify("Label name cannot be empty", vim.log.levels.ERROR)
     return false
   end
 
   if state.layers[layer_name].labels[label_name] then
-    silent_message("Label '" .. label_name .. "' already exists in layer '" .. layer_name .. "'", vim.log.levels.WARN)
+    vim.notify("Label '" .. label_name .. "' already exists in layer '" .. layer_name .. "'", vim.log.levels.WARN)
     return false
   end
 
@@ -261,12 +261,12 @@ function M.remove_label(layer_name, label_name)
   layer_name = layer_name or state.current_layer
 
   if not state.layers[layer_name] then
-    silent_message("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
+    vim.notify("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
   if not state.layers[layer_name].labels[label_name] then
-    silent_message("Label '" .. label_name .. "' does not exist in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
+    vim.notify("Label '" .. label_name .. "' does not exist in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
     return false
   end
 
@@ -286,17 +286,17 @@ function M.rename_label(layer_name, old_name, new_name)
   layer_name = layer_name or state.current_layer
 
   if not state.layers[layer_name] then
-    silent_message("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
+    vim.notify("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
   if not state.layers[layer_name].labels[old_name] then
-    silent_message("Label '" .. old_name .. "' does not exist in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
+    vim.notify("Label '" .. old_name .. "' does not exist in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
     return false
   end
 
   if state.layers[layer_name].labels[new_name] then
-    silent_message("Label '" .. new_name .. "' already exists in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
+    vim.notify("Label '" .. new_name .. "' already exists in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
     return false
   end
 
@@ -362,7 +362,7 @@ end
 function M.switch_to_previous_layer()
   local ordered_layers = M.get_ordered_layer_names()
   if #ordered_layers <= 1 then
-    silent_message("No other layers to switch to", vim.log.levels.WARN)
+    vim.notify("No other layers to switch to", vim.log.levels.WARN)
     return false
   end
 
@@ -383,7 +383,7 @@ end
 function M.switch_to_next_layer()
   local ordered_layers = M.get_ordered_layer_names()
   if #ordered_layers <= 1 then
-    silent_message("No other layers to switch to", vim.log.levels.WARN)
+    vim.notify("No other layers to switch to", vim.log.levels.WARN)
     return false
   end
 
@@ -405,7 +405,7 @@ function M.reorder_layers(new_order)
   -- Validate that all layers in new_order exist
   for _, name in ipairs(new_order) do
     if not state.layers[name] then
-      silent_message("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
+      vim.notify("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
       return false
     end
   end
@@ -494,7 +494,7 @@ function M.process_layer_reorder_buffer(buf)
   end
 
   if #new_order == 0 then
-    silent_message("No valid layer names found in buffer", vim.log.levels.ERROR)
+    vim.notify("No valid layer names found in buffer", vim.log.levels.ERROR)
     return
   end
 

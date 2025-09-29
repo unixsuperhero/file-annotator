@@ -96,7 +96,7 @@ function M.refresh_buffer()
           end
         else
           -- Handle corrupted annotation data
-          silent_message(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
+          vim.notify(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
                                    state.current_layer, label_name, line_num), vim.log.levels.WARN)
           label_annotations[line_num] = nil
         end
@@ -125,7 +125,7 @@ function M.refresh_buffer_all_layers()
             end
           else
             -- Handle corrupted annotation data
-            silent_message(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
+            vim.notify(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
                                      layer_name, label_name, line_num), vim.log.levels.WARN)
             label_annotations[line_num] = nil
           end

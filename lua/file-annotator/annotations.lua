@@ -30,7 +30,7 @@ function M.annotate_line(line_num, label_name, layer_name)
   layer_name = layer_name or state.current_layer
 
   if not layer_name then
-    silent_message("No current layer set and no layer specified", vim.log.levels.ERROR)
+    vim.notify("No current layer set and no layer specified", vim.log.levels.ERROR)
     return false
   end
 
@@ -67,7 +67,7 @@ function M.annotate_line(line_num, label_name, layer_name)
   local line_count = vim.api.nvim_buf_line_count(bufnr)
 
   if line_num < 1 or line_num > line_count then
-    silent_message("Line number " .. line_num .. " is out of range", vim.log.levels.ERROR)
+    vim.notify("Line number " .. line_num .. " is out of range", vim.log.levels.ERROR)
     return false
   end
 
@@ -85,14 +85,14 @@ function M.remove_annotation(line_num, label_name, layer_name)
   layer_name = layer_name or state.current_layer
 
   if not layer_name then
-    silent_message("No current layer set", vim.log.levels.ERROR)
+    vim.notify("No current layer set", vim.log.levels.ERROR)
     return false
   end
 
   if not state.annotations[layer_name] or
      not state.annotations[layer_name][label_name] or
      not state.annotations[layer_name][label_name][line_num] then
-    silent_message("No annotation found at line " .. line_num, vim.log.levels.WARN)
+    vim.notify("No annotation found at line " .. line_num, vim.log.levels.WARN)
     return false
   end
 
@@ -120,7 +120,7 @@ function M.clear_all_annotations(layer_name)
   layer_name = layer_name or state.current_layer
 
   if not layer_name then
-    silent_message("No current layer set", vim.log.levels.ERROR)
+    vim.notify("No current layer set", vim.log.levels.ERROR)
     return false
   end
 
@@ -176,7 +176,7 @@ end
 
 function M.annotate_range(start_line, end_line, label_name, layer_name)
   if not start_line or not end_line then
-    silent_message("Invalid range specified", vim.log.levels.ERROR)
+    vim.notify("Invalid range specified", vim.log.levels.ERROR)
     return false
   end
 
