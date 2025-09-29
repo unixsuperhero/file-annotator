@@ -2,14 +2,26 @@ local M = {}
 local state = require("file-annotator").state
 local config = require("file-annotator").config
 
+-- Helper function for silent messaging
+local function silent_message(msg, level)
+  level = level or vim.log.levels.INFO
+  if level == vim.log.levels.ERROR then
+    vim.cmd(string.format("silent echohl ErrorMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
+  elseif level == vim.log.levels.WARN then
+    vim.cmd(string.format("silent echohl WarningMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
+  else
+    vim.cmd(string.format("silent echom '%s'", msg:gsub("'", "''")))
+  end
+end
+
 function M.create_layer(name)
   if not name or name == "" then
-    vim.notify("Layer name cannot be empty", vim.log.levels.ERROR)
+    silent_message("Layer name cannot be empty", vim.log.levels.ERROR)
     return false
   end
 
   if state.layers[name] then
-    vim.notify("Layer '" .. name .. "' already exists", vim.log.levels.WARN)
+    silent_message("Layer '" .. name .. "' already exists", vim.log.levels.WARN)
     return false
   end
 
@@ -25,13 +37,13 @@ function M.create_layer(name)
     state.current_layer = name
   end
 
-  vim.notify("Created layer: " .. name, vim.log.levels.INFO)
+  silent_message("Created layer: " .. name, vim.log.levels.INFO)
   return true
 end
 
 function M.delete_layer(name)
   if not state.layers[name] then
-    vim.notify("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
+    silent_message("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
@@ -53,18 +65,18 @@ function M.delete_layer(name)
     state.annotations[name] = nil
   end
 
-  vim.notify("Deleted layer: " .. name, vim.log.levels.INFO)
+  silent_message("Deleted layer: " .. name, vim.log.levels.INFO)
   return true
 end
 
 function M.rename_layer(old_name, new_name)
   if not state.layers[old_name] then
-    vim.notify("Layer '" .. old_name .. "' does not exist", vim.log.levels.ERROR)
+    silent_message("Layer '" .. old_name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
   if state.layers[new_name] then
-    vim.notify("Layer '" .. new_name .. "' already exists", vim.log.levels.ERROR)
+    silent_message("Layer '" .. new_name .. "' already exists", vim.log.levels.ERROR)
     return false
   end
 
@@ -87,13 +99,13 @@ function M.rename_layer(old_name, new_name)
   vim.api.nvim_buf_clear_namespace(0, old_ns, 0, -1)
   require("file-annotator.highlights").refresh_buffer()
 
-  vim.notify("Renamed layer '" .. old_name .. "' to '" .. new_name .. "'", vim.log.levels.INFO)
+  silent_message("Renamed layer '" .. old_name .. "' to '" .. new_name .. "'", vim.log.levels.INFO)
   return true
 end
 
 function M.duplicate_layer(source_name, new_name)
   if not state.layers[source_name] then
-    vim.notify("Layer '" .. source_name .. "' does not exist", vim.log.levels.ERROR)
+    silent_message("Layer '" .. source_name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
@@ -109,11 +121,11 @@ function M.duplicate_layer(source_name, new_name)
       index = index + 1
     until not state.layers[new_name]
 
-    vim.notify("Auto-generated name: " .. new_name, vim.log.levels.INFO)
+    silent_message("Auto-generated name: " .. new_name, vim.log.levels.INFO)
   end
 
   if state.layers[new_name] then
-    vim.notify("Layer '" .. new_name .. "' already exists", vim.log.levels.ERROR)
+    silent_message("Layer '" .. new_name .. "' already exists", vim.log.levels.ERROR)
     return false
   end
 
@@ -139,26 +151,26 @@ function M.duplicate_layer(source_name, new_name)
   end
 
   -- Note: We don't copy annotations, only the layer structure and labels
-  vim.notify("Duplicated layer '" .. source_name .. "' to '" .. new_name .. "' with " ..
+  silent_message("Duplicated layer '" .. source_name .. "' to '" .. new_name .. "' with " ..
              vim.tbl_count(state.layers[new_name].labels) .. " labels", vim.log.levels.INFO)
   return true
 end
 
 function M.set_current_layer(name)
   if not state.layers[name] then
-    vim.notify("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
+    silent_message("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
   state.current_layer = name
   require("file-annotator.highlights").refresh_buffer()
-  vim.notify("Switched to layer: " .. name, vim.log.levels.INFO)
+  silent_message("Switched to layer: " .. name, vim.log.levels.INFO)
   return true
 end
 
 function M.toggle_layer_visibility(name)
   if not state.layers[name] then
-    vim.notify("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
+    silent_message("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
@@ -166,7 +178,7 @@ function M.toggle_layer_visibility(name)
   require("file-annotator.highlights").refresh_buffer()
 
   local status = state.layers[name].visible and "visible" or "hidden"
-  vim.notify("Layer '" .. name .. "' is now " .. status, vim.log.levels.INFO)
+  silent_message("Layer '" .. name .. "' is now " .. status, vim.log.levels.INFO)
   return true
 end
 
@@ -189,17 +201,17 @@ function M.add_label(layer_name, label_name, color)
   layer_name = layer_name or state.current_layer
 
   if not state.layers[layer_name] then
-    vim.notify("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
+    silent_message("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
   if not label_name or label_name == "" then
-    vim.notify("Label name cannot be empty", vim.log.levels.ERROR)
+    silent_message("Label name cannot be empty", vim.log.levels.ERROR)
     return false
   end
 
   if state.layers[layer_name].labels[label_name] then
-    vim.notify("Label '" .. label_name .. "' already exists in layer '" .. layer_name .. "'", vim.log.levels.WARN)
+    silent_message("Label '" .. label_name .. "' already exists in layer '" .. layer_name .. "'", vim.log.levels.WARN)
     return false
   end
 
@@ -228,7 +240,7 @@ function M.add_label(layer_name, label_name, color)
 
   require("file-annotator.highlights").create_highlight_group(layer_name, label_name, color)
 
-  vim.notify("Added label '" .. label_name .. "' to layer '" .. layer_name .. "'", vim.log.levels.INFO)
+  silent_message("Added label '" .. label_name .. "' to layer '" .. layer_name .. "'", vim.log.levels.INFO)
   return true
 end
 
@@ -236,12 +248,12 @@ function M.remove_label(layer_name, label_name)
   layer_name = layer_name or state.current_layer
 
   if not state.layers[layer_name] then
-    vim.notify("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
+    silent_message("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
   if not state.layers[layer_name].labels[label_name] then
-    vim.notify("Label '" .. label_name .. "' does not exist in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
+    silent_message("Label '" .. label_name .. "' does not exist in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
     return false
   end
 
@@ -253,7 +265,7 @@ function M.remove_label(layer_name, label_name)
 
   require("file-annotator.highlights").refresh_buffer()
 
-  vim.notify("Removed label '" .. label_name .. "' from layer '" .. layer_name .. "'", vim.log.levels.INFO)
+  silent_message("Removed label '" .. label_name .. "' from layer '" .. layer_name .. "'", vim.log.levels.INFO)
   return true
 end
 
@@ -261,17 +273,17 @@ function M.rename_label(layer_name, old_name, new_name)
   layer_name = layer_name or state.current_layer
 
   if not state.layers[layer_name] then
-    vim.notify("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
+    silent_message("Layer '" .. layer_name .. "' does not exist", vim.log.levels.ERROR)
     return false
   end
 
   if not state.layers[layer_name].labels[old_name] then
-    vim.notify("Label '" .. old_name .. "' does not exist in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
+    silent_message("Label '" .. old_name .. "' does not exist in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
     return false
   end
 
   if state.layers[layer_name].labels[new_name] then
-    vim.notify("Label '" .. new_name .. "' already exists in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
+    silent_message("Label '" .. new_name .. "' already exists in layer '" .. layer_name .. "'", vim.log.levels.ERROR)
     return false
   end
 
@@ -286,7 +298,7 @@ function M.rename_label(layer_name, old_name, new_name)
   require("file-annotator.highlights").create_highlight_group(layer_name, new_name, state.layers[layer_name].labels[new_name].color)
   require("file-annotator.highlights").refresh_buffer()
 
-  vim.notify("Renamed label '" .. old_name .. "' to '" .. new_name .. "' in layer '" .. layer_name .. "'", vim.log.levels.INFO)
+  silent_message("Renamed label '" .. old_name .. "' to '" .. new_name .. "' in layer '" .. layer_name .. "'", vim.log.levels.INFO)
   return true
 end
 
@@ -337,7 +349,7 @@ end
 function M.switch_to_previous_layer()
   local ordered_layers = M.get_ordered_layer_names()
   if #ordered_layers <= 1 then
-    vim.notify("No other layers to switch to", vim.log.levels.WARN)
+    silent_message("No other layers to switch to", vim.log.levels.WARN)
     return false
   end
 
@@ -358,7 +370,7 @@ end
 function M.switch_to_next_layer()
   local ordered_layers = M.get_ordered_layer_names()
   if #ordered_layers <= 1 then
-    vim.notify("No other layers to switch to", vim.log.levels.WARN)
+    silent_message("No other layers to switch to", vim.log.levels.WARN)
     return false
   end
 
@@ -380,7 +392,7 @@ function M.reorder_layers(new_order)
   -- Validate that all layers in new_order exist
   for _, name in ipairs(new_order) do
     if not state.layers[name] then
-      vim.notify("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
+      silent_message("Layer '" .. name .. "' does not exist", vim.log.levels.ERROR)
       return false
     end
   end
@@ -401,7 +413,7 @@ function M.reorder_layers(new_order)
   end
 
   state.layer_order = new_order
-  vim.notify("Layer order updated", vim.log.levels.INFO)
+  silent_message("Layer order updated", vim.log.levels.INFO)
   return true
 end
 
@@ -449,7 +461,7 @@ function M.open_layer_reorder_buffer()
     desc = "Process layer reorder buffer"
   })
 
-  vim.notify("Edit layer order and save to apply changes", vim.log.levels.INFO)
+  silent_message("Edit layer order and save to apply changes", vim.log.levels.INFO)
 end
 
 function M.process_layer_reorder_buffer(buf)
@@ -469,7 +481,7 @@ function M.process_layer_reorder_buffer(buf)
   end
 
   if #new_order == 0 then
-    vim.notify("No valid layer names found in buffer", vim.log.levels.ERROR)
+    silent_message("No valid layer names found in buffer", vim.log.levels.ERROR)
     return
   end
 
@@ -477,7 +489,7 @@ function M.process_layer_reorder_buffer(buf)
   if M.reorder_layers(new_order) then
     vim.api.nvim_buf_set_option(buf, "modified", false)
     vim.cmd("bdelete")
-    vim.notify("Layer order applied successfully", vim.log.levels.INFO)
+    silent_message("Layer order applied successfully", vim.log.levels.INFO)
   end
 end
 

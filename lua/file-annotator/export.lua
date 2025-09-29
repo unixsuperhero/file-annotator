@@ -1,5 +1,17 @@
 local M = {}
 local state = require("file-annotator").state
+
+-- Helper function for silent messaging
+local function silent_message(msg, level)
+  level = level or vim.log.levels.INFO
+  if level == vim.log.levels.ERROR then
+    vim.cmd(string.format("silent echohl ErrorMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
+  elseif level == vim.log.levels.WARN then
+    vim.cmd(string.format("silent echohl WarningMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
+  else
+    vim.cmd(string.format("silent echom '%s'", msg:gsub("'", "''")))
+  end
+end
 local config = require("file-annotator").config
 
 function M.export_to_html(filename, options)
@@ -20,14 +32,14 @@ function M.export_to_html(filename, options)
 
   local file = io.open(output_path, "w")
   if not file then
-    vim.notify("Failed to create export file: " .. output_path, vim.log.levels.ERROR)
+    silent_message("Failed to create export file: " .. output_path, vim.log.levels.ERROR)
     return false
   end
 
   file:write(html_content)
   file:close()
 
-  vim.notify("Exported to: " .. output_path, vim.log.levels.INFO)
+  silent_message("Exported to: " .. output_path, vim.log.levels.INFO)
   return output_path
 end
 
@@ -718,14 +730,14 @@ function M.export_annotations_to_json(filename)
   -- Write to file
   local file = io.open(output_path, "w")
   if not file then
-    vim.notify("Failed to create annotation export file: " .. output_path, vim.log.levels.ERROR)
+    silent_message("Failed to create annotation export file: " .. output_path, vim.log.levels.ERROR)
     return false
   end
 
   file:write(json_data)
   file:close()
 
-  vim.notify("Annotations exported to: " .. output_path, vim.log.levels.INFO)
+  silent_message("Annotations exported to: " .. output_path, vim.log.levels.INFO)
   return output_path
 end
 
@@ -733,7 +745,7 @@ function M.import_annotations_from_json(filename)
   -- Check if file exists
   local file = io.open(filename, "r")
   if not file then
-    vim.notify("Annotation file not found: " .. filename, vim.log.levels.ERROR)
+    silent_message("Annotation file not found: " .. filename, vim.log.levels.ERROR)
     return false
   end
 
@@ -743,13 +755,13 @@ function M.import_annotations_from_json(filename)
   -- Parse JSON
   local success, data = pcall(vim.fn.json_decode, content)
   if not success then
-    vim.notify("Failed to parse annotation file: " .. filename, vim.log.levels.ERROR)
+    silent_message("Failed to parse annotation file: " .. filename, vim.log.levels.ERROR)
     return false
   end
 
   -- Validate data structure
   if not data.layers or not data.annotations then
-    vim.notify("Invalid annotation file format: " .. filename, vim.log.levels.ERROR)
+    silent_message("Invalid annotation file format: " .. filename, vim.log.levels.ERROR)
     return false
   end
 
@@ -763,7 +775,7 @@ function M.import_annotations_from_json(filename)
   )
 
   if confirmation == 2 then -- No
-    vim.notify("Import cancelled", vim.log.levels.INFO)
+    silent_message("Import cancelled", vim.log.levels.INFO)
     return false
   elseif confirmation == 3 then -- Merge
     return M.merge_annotations(data)
@@ -834,7 +846,7 @@ function M.replace_annotations(data)
   require("file-annotator.highlights").refresh_buffer()
 
   local stats = M.get_import_stats(data)
-  vim.notify(string.format("Successfully imported %d layers with %d annotations (exported: %s)",
+  silent_message(string.format("Successfully imported %d layers with %d annotations (exported: %s)",
                            stats.layer_count, stats.annotation_count, stats.export_date),
              vim.log.levels.INFO)
   return true
@@ -912,7 +924,7 @@ function M.merge_annotations(data)
   if conflicts > 0 then
     message = message .. string.format(", %d conflicts skipped", conflicts)
   end
-  vim.notify(message, vim.log.levels.INFO)
+  silent_message(message, vim.log.levels.INFO)
   return true
 end
 

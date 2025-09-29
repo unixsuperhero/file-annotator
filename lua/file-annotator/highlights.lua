@@ -1,6 +1,18 @@
 local M = {}
 local state = require("file-annotator").state
 
+-- Helper function for silent messaging
+local function silent_message(msg, level)
+  level = level or vim.log.levels.INFO
+  if level == vim.log.levels.ERROR then
+    vim.cmd(string.format("silent echohl ErrorMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
+  elseif level == vim.log.levels.WARN then
+    vim.cmd(string.format("silent echohl WarningMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
+  else
+    vim.cmd(string.format("silent echom '%s'", msg:gsub("'", "''")))
+  end
+end
+
 function M.setup()
   -- Set up autocommands for refreshing highlights when entering buffers
   vim.api.nvim_create_autocmd({"BufEnter", "BufWinEnter"}, {
@@ -71,7 +83,7 @@ function M.refresh_buffer()
           end
         else
           -- Handle corrupted annotation data
-          vim.notify(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
+          silent_message(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
                                    state.current_layer, label_name, line_num), vim.log.levels.WARN)
           label_annotations[line_num] = nil
         end
@@ -100,7 +112,7 @@ function M.refresh_buffer_all_layers()
             end
           else
             -- Handle corrupted annotation data
-            vim.notify(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
+            silent_message(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
                                      layer_name, label_name, line_num), vim.log.levels.WARN)
             label_annotations[line_num] = nil
           end

@@ -1,11 +1,23 @@
 local M = {}
 local state = require("file-annotator").state
 
+-- Helper function for silent messaging
+local function silent_message(msg, level)
+  level = level or vim.log.levels.INFO
+  if level == vim.log.levels.ERROR then
+    vim.cmd(string.format("silent echohl ErrorMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
+  elseif level == vim.log.levels.WARN then
+    vim.cmd(string.format("silent echohl WarningMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
+  else
+    vim.cmd(string.format("silent echom '%s'", msg:gsub("'", "''")))
+  end
+end
+
 function M.annotate_line(line_num, label_name, layer_name)
   layer_name = layer_name or state.current_layer
 
   if not layer_name then
-    vim.notify("No current layer set and no layer specified", vim.log.levels.ERROR)
+    silent_message("No current layer set and no layer specified", vim.log.levels.ERROR)
     return false
   end
 
@@ -14,20 +26,20 @@ function M.annotate_line(line_num, label_name, layer_name)
   -- Auto-create layer if it doesn't exist
   if not state.layers[layer_name] then
     layers.create_layer(layer_name)
-    vim.notify("Auto-created layer: " .. layer_name, vim.log.levels.INFO)
+    silent_message("Auto-created layer: " .. layer_name, vim.log.levels.INFO)
   end
 
   -- Auto-switch to the layer if it's not the current one
   if state.current_layer ~= layer_name then
     state.current_layer = layer_name
     require("file-annotator.highlights").refresh_buffer()
-    vim.notify("Switched to layer: " .. layer_name, vim.log.levels.INFO)
+    silent_message("Switched to layer: " .. layer_name, vim.log.levels.INFO)
   end
 
   -- Auto-create label if it doesn't exist
   if not state.layers[layer_name].labels[label_name] then
     layers.add_label(layer_name, label_name)
-    vim.notify("Auto-created label '" .. label_name .. "' in layer '" .. layer_name .. "'", vim.log.levels.INFO)
+    silent_message("Auto-created label '" .. label_name .. "' in layer '" .. layer_name .. "'", vim.log.levels.INFO)
   end
 
   if not state.annotations[layer_name] then
@@ -42,7 +54,7 @@ function M.annotate_line(line_num, label_name, layer_name)
   local line_count = vim.api.nvim_buf_line_count(bufnr)
 
   if line_num < 1 or line_num > line_count then
-    vim.notify("Line number " .. line_num .. " is out of range", vim.log.levels.ERROR)
+    silent_message("Line number " .. line_num .. " is out of range", vim.log.levels.ERROR)
     return false
   end
 
@@ -60,14 +72,14 @@ function M.remove_annotation(line_num, label_name, layer_name)
   layer_name = layer_name or state.current_layer
 
   if not layer_name then
-    vim.notify("No current layer set", vim.log.levels.ERROR)
+    silent_message("No current layer set", vim.log.levels.ERROR)
     return false
   end
 
   if not state.annotations[layer_name] or
      not state.annotations[layer_name][label_name] or
      not state.annotations[layer_name][label_name][line_num] then
-    vim.notify("No annotation found at line " .. line_num, vim.log.levels.WARN)
+    silent_message("No annotation found at line " .. line_num, vim.log.levels.WARN)
     return false
   end
 
@@ -95,7 +107,7 @@ function M.clear_all_annotations(layer_name)
   layer_name = layer_name or state.current_layer
 
   if not layer_name then
-    vim.notify("No current layer set", vim.log.levels.ERROR)
+    silent_message("No current layer set", vim.log.levels.ERROR)
     return false
   end
 
@@ -106,7 +118,7 @@ function M.clear_all_annotations(layer_name)
   local bufnr = vim.api.nvim_get_current_buf()
   vim.api.nvim_buf_clear_namespace(bufnr, state.namespaces[layer_name], 0, -1)
 
-  vim.notify("Cleared all annotations in layer: " .. layer_name, vim.log.levels.INFO)
+  silent_message("Cleared all annotations in layer: " .. layer_name, vim.log.levels.INFO)
   return true
 end
 
@@ -145,13 +157,13 @@ function M.annotate_selection(label_name, layer_name)
     end
   end
 
-  vim.notify("Annotated " .. success_count .. " lines with label '" .. label_name .. "'", vim.log.levels.INFO)
+  silent_message("Annotated " .. success_count .. " lines with label '" .. label_name .. "'", vim.log.levels.INFO)
   return success_count > 0
 end
 
 function M.annotate_range(start_line, end_line, label_name, layer_name)
   if not start_line or not end_line then
-    vim.notify("Invalid range specified", vim.log.levels.ERROR)
+    silent_message("Invalid range specified", vim.log.levels.ERROR)
     return false
   end
 
@@ -167,7 +179,7 @@ function M.annotate_range(start_line, end_line, label_name, layer_name)
   end
 
   if success_count > 1 then
-    vim.notify("Annotated " .. success_count .. " lines (lines " .. start_line .. "-" .. end_line .. ") with label '" .. label_name .. "'", vim.log.levels.INFO)
+    silent_message("Annotated " .. success_count .. " lines (lines " .. start_line .. "-" .. end_line .. ") with label '" .. label_name .. "'", vim.log.levels.INFO)
   end
   return success_count > 0
 end

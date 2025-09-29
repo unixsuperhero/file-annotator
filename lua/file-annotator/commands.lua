@@ -3,6 +3,18 @@ local layers = require("file-annotator.layers")
 local annotations = require("file-annotator.annotations")
 local export = require("file-annotator.export")
 
+-- Helper function for silent messaging
+local function silent_message(msg, level)
+  level = level or vim.log.levels.INFO
+  if level == vim.log.levels.ERROR then
+    vim.cmd(string.format("silent echohl ErrorMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
+  elseif level == vim.log.levels.WARN then
+    vim.cmd(string.format("silent echohl WarningMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
+  else
+    vim.cmd(string.format("silent echom '%s'", msg:gsub("'", "''")))
+  end
+end
+
 function M.setup()
   -- Layer management commands
   vim.api.nvim_create_user_command("FACreateLayer", function(opts)
@@ -23,7 +35,7 @@ function M.setup()
   vim.api.nvim_create_user_command("FARenameLayer", function(opts)
     local args = vim.split(opts.args, " ", { plain = true })
     if #args ~= 2 then
-      vim.notify("Usage: FARenameLayer <old_name> <new_name>", vim.log.levels.ERROR)
+      silent_message("Usage: FARenameLayer <old_name> <new_name>", vim.log.levels.ERROR)
       return
     end
     layers.rename_layer(args[1], args[2])
@@ -36,7 +48,7 @@ function M.setup()
   vim.api.nvim_create_user_command("FADuplicateLayer", function(opts)
     local args = vim.split(opts.args, " ", { plain = true })
     if #args < 1 or #args > 2 then
-      vim.notify("Usage: FADuplicateLayer <source_layer> [new_layer]", vim.log.levels.ERROR)
+      silent_message("Usage: FADuplicateLayer <source_layer> [new_layer]", vim.log.levels.ERROR)
       return
     end
     layers.duplicate_layer(args[1], args[2])
@@ -90,7 +102,7 @@ function M.setup()
   vim.api.nvim_create_user_command("FAAddLabel", function(opts)
     local args = vim.split(opts.args, " ", { plain = true })
     if #args < 1 then
-      vim.notify("Usage: FAAddLabel <label_name> [color]", vim.log.levels.ERROR)
+      silent_message("Usage: FAAddLabel <label_name> [color]", vim.log.levels.ERROR)
       return
     end
     local label_name = args[1]
@@ -112,7 +124,7 @@ function M.setup()
   vim.api.nvim_create_user_command("FARenameLabel", function(opts)
     local args = vim.split(opts.args, " ", { plain = true })
     if #args ~= 2 then
-      vim.notify("Usage: FARenameLabel <old_name> <new_name>", vim.log.levels.ERROR)
+      silent_message("Usage: FARenameLabel <old_name> <new_name>", vim.log.levels.ERROR)
       return
     end
     layers.rename_label(nil, args[1], args[2])
@@ -127,7 +139,7 @@ function M.setup()
     local args = vim.split(opts.args, " ", { plain = true })
 
     if #args < 1 or #args > 2 then
-      vim.notify("Usage: FAAnnotate <label_name> [layer_name]", vim.log.levels.ERROR)
+      silent_message("Usage: FAAnnotate <label_name> [layer_name]", vim.log.levels.ERROR)
       return
     end
 
@@ -157,7 +169,7 @@ function M.setup()
     local line_num = vim.fn.line(".")
     local label_name = opts.args
     if label_name == "" then
-      vim.notify("Usage: FARemoveAnnotation <label_name>", vim.log.levels.ERROR)
+      silent_message("Usage: FARemoveAnnotation <label_name>", vim.log.levels.ERROR)
       return
     end
     annotations.remove_annotation(line_num, label_name)
@@ -171,7 +183,7 @@ function M.setup()
     local line_num = vim.fn.line(".")
     local label_name = opts.args
     if label_name == "" then
-      vim.notify("Usage: FAToggleAnnotation <label_name>", vim.log.levels.ERROR)
+      silent_message("Usage: FAToggleAnnotation <label_name>", vim.log.levels.ERROR)
       return
     end
     annotations.toggle_annotation(line_num, label_name)
@@ -195,7 +207,7 @@ function M.setup()
     local args = vim.split(opts.args, " ", { plain = true })
 
     if #args < 1 or #args > 2 then
-      vim.notify("Usage: FAAnnotateSelection <label_name> [layer_name]", vim.log.levels.ERROR)
+      silent_message("Usage: FAAnnotateSelection <label_name> [layer_name]", vim.log.levels.ERROR)
       return
     end
 
@@ -227,7 +239,7 @@ function M.setup()
 
   vim.api.nvim_create_user_command("FAShowAllLayers", function()
     require("file-annotator.highlights").refresh_buffer_all_layers()
-    vim.notify("Showing annotations from all visible layers", vim.log.levels.INFO)
+    silent_message("Showing annotations from all visible layers")
   end, {
     desc = "Show annotations from all visible layers"
   })
@@ -236,7 +248,7 @@ function M.setup()
     require("file-annotator.highlights").refresh_buffer()
     local state = require("file-annotator").state
     local layer_name = state.current_layer or "none"
-    vim.notify("Showing annotations from current layer only: " .. layer_name, vim.log.levels.INFO)
+    silent_message("Showing annotations from current layer only: " .. layer_name)
   end, {
     desc = "Show annotations from current layer only"
   })
@@ -259,7 +271,7 @@ function M.setup()
 
   vim.api.nvim_create_user_command("FAImportAnnotations", function(opts)
     if opts.args == "" then
-      vim.notify("Usage: FAImportAnnotations <filename>", vim.log.levels.ERROR)
+      silent_message("Usage: FAImportAnnotations <filename>", vim.log.levels.ERROR)
       return
     end
     export.import_annotations_from_json(opts.args)
@@ -355,7 +367,7 @@ function M.show_layers_info()
   local layer_list = layers.list_layers()
 
   if #layer_list == 0 then
-    vim.notify("No layers created yet", vim.log.levels.INFO)
+    silent_message("No layers created yet")
     return
   end
 
@@ -370,7 +382,7 @@ function M.show_layers_info()
     table.insert(lines, string.format("• %s%s - %d labels", layer.name, status, layer.label_count))
   end
 
-  vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
+  silent_message(table.concat(lines, "\n"))
 end
 
 function M.show_annotation_stats()
@@ -389,7 +401,7 @@ function M.show_annotation_stats()
     lines[#lines + 1] = ""
   end
 
-  vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
+  silent_message(table.concat(lines, "\n"))
 end
 
 function M.cleanup_corrupted_annotations()
@@ -426,7 +438,7 @@ function M.cleanup_corrupted_annotations()
   -- Refresh highlights after cleanup
   require("file-annotator.highlights").refresh_buffer()
 
-  vim.notify(string.format("Cleanup complete: %d/%d annotations cleaned", cleaned, total), vim.log.levels.INFO)
+  silent_message(string.format("Cleanup complete: %d/%d annotations cleaned", cleaned, total))
 end
 
 function M.quick_setup()
@@ -456,7 +468,7 @@ function M.quick_setup()
   -- Set review as current layer
   layers.set_current_layer("review")
 
-  vim.notify("Quick setup complete! Created 3 layers with default labels.", vim.log.levels.INFO)
+  silent_message("Quick setup complete! Created 3 layers with default labels.")
 end
 
 -- Key mapping helpers
@@ -469,7 +481,7 @@ function M.setup_keymaps()
     vim.keymap.set("n", "<leader>a" .. i, function()
       local state = require("file-annotator").state
       if not state.current_layer then
-        vim.notify("No current layer set", vim.log.levels.ERROR)
+        silent_message("No current layer set", vim.log.levels.ERROR)
         return
       end
 
