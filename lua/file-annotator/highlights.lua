@@ -4,12 +4,25 @@ local state = require("file-annotator").state
 -- Helper function for silent messaging
 local function silent_message(msg, level)
   level = level or vim.log.levels.INFO
-  if level == vim.log.levels.ERROR then
-    vim.cmd(string.format("silent echohl ErrorMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
-  elseif level == vim.log.levels.WARN then
-    vim.cmd(string.format("silent echohl WarningMsg | silent echom '%s' | silent echohl None", msg:gsub("'", "''")))
-  else
-    vim.cmd(string.format("silent echom '%s'", msg:gsub("'", "''")))
+
+  -- Split multi-line messages and handle each line separately
+  local lines = vim.split(msg, "\n", { plain = true })
+
+  for _, line in ipairs(lines) do
+    -- Escape single quotes by doubling them
+    local escaped_line = line:gsub("'", "''")
+
+    if level == vim.log.levels.ERROR then
+      vim.cmd("silent echohl ErrorMsg")
+      vim.cmd(string.format("silent echom '%s'", escaped_line))
+      vim.cmd("silent echohl None")
+    elseif level == vim.log.levels.WARN then
+      vim.cmd("silent echohl WarningMsg")
+      vim.cmd(string.format("silent echom '%s'", escaped_line))
+      vim.cmd("silent echohl None")
+    else
+      vim.cmd(string.format("silent echom '%s'", escaped_line))
+    end
   end
 end
 

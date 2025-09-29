@@ -1,0 +1,7 @@
+Error executing Lua callback: vim/_editor.lua:0: nvim_exec2(), line 1: Vim(echomsg):E115: Missing quote: 'File Annotator Layers:
+stack traceback:
+	[C]: in function 'nvim_exec2'
+	vim/_editor.lua: in function 'cmd'
+	...nvim/lazy/file-annotator/lua/file-annotator/commands.lua:14: in function 'silent_message'
+	...nvim/lazy/file-annotator/lua/file-annotator/commands.lua:385: in function 'show_layers_info'
+	...nvim/lazy/file-annotator/lua/file-annotator/commands.lua:78: in function <...nvim/lazy/file-annotator/lua/file-annotator/commands.lua:77>
