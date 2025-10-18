@@ -192,6 +192,20 @@ function M.generate_html(lines, filename, options)
             overflow-x: auto;
             position: relative;
         }
+        .line-skip {
+            display: flex;
+            min-height: 22px;
+            line-height: 22px;
+            background-color: #f8f8f8;
+            font-style: italic;
+            color: #999;
+        }
+        .skip-indicator {
+            text-align: center !important;
+        }
+        .skip-text {
+            color: #999;
+        }
 ]] .. M.generate_layer_styles(layer_info) .. [[
     </style>
 </head>
@@ -498,10 +512,57 @@ function M.generate_interactive_legend(layer_info)
 end
 
 function M.generate_interactive_lines(lines, layer_info)
-  local html_lines = ""
-
-  for i, line in ipairs(lines) do
+  -- Build annotation map for quick lookup
+  local annotation_map = {}
+  for i = 1, #lines do
     local line_annotations = M.get_all_line_annotations(i, layer_info)
+    local has_annotations = false
+    for _, annots in pairs(line_annotations) do
+      if #annots > 0 then
+        has_annotations = true
+        break
+      end
+    end
+    if has_annotations then
+      annotation_map[i] = line_annotations
+    end
+  end
+
+  -- Generate compact HTML - only include annotated ranges
+  local html_lines = ""
+  local current_line = 1
+
+  while current_line <= #lines do
+    local next_annotated = nil
+
+    -- Find next annotated line
+    for i = current_line, #lines do
+      if annotation_map[i] then
+        next_annotated = i
+        break
+      end
+    end
+
+    if not next_annotated then
+      -- No more annotations, skip to end
+      break
+    end
+
+    -- Add unannotated lines before next annotation (compressed)
+    if next_annotated > current_line then
+      local skip_count = next_annotated - current_line
+      html_lines = html_lines .. string.format([[
+            <div class="line-skip" data-line-start="%d" data-line-end="%d">
+                <div class="line-number skip-indicator">...</div>
+                <div class="line-content skip-text">(%d lines)</div>
+            </div>
+]], current_line, next_annotated - 1, skip_count)
+    end
+
+    -- Add the annotated line
+    local i = next_annotated
+    local line = lines[i]
+    local line_annotations = annotation_map[i]
 
     -- Generate layer indicators
     local indicators = ""
@@ -510,7 +571,7 @@ function M.generate_interactive_lines(lines, layer_info)
         layer_name, layer_name)
     end
 
-    -- Generate data attributes and determine label colors for each layer
+    -- Generate data attributes
     local data_attrs = ""
     local layer_classes = ""
     local layer_colors = {}
@@ -523,13 +584,10 @@ function M.generate_interactive_lines(lines, layer_info)
         data_attrs = data_attrs .. string.format([[ data-%s-labels="%s"]],
           layer_name, table.concat(label_names, ","))
         layer_classes = layer_classes .. " has-" .. layer_name
-
-        -- Store all colors for this layer (comma-separated for multiple labels)
         layer_colors[layer_name] = table.concat(label_colors, ",")
       end
     end
 
-    -- Generate inline styles for each layer's label colors
     local style_attrs = ""
     for layer_name, colors in pairs(layer_colors) do
       if style_attrs == "" then
@@ -546,6 +604,8 @@ function M.generate_interactive_lines(lines, layer_info)
                 <div class="line-content">%s</div>
             </div>
 ]], layer_classes, i, data_attrs, style_attrs, indicators, i, M.escape_html(line))
+
+    current_line = next_annotated + 1
   end
 
   return html_lines
@@ -558,18 +618,41 @@ function M.get_all_line_annotations(line_num, layer_info)
     annotations_by_layer[layer_name] = {}
 
     for label_name, label_annotations in pairs(layer_annotations) do
-      if label_annotations[line_num] then
-        -- Use the globally assigned color from layer_info instead of the original state color
+      local line_data = label_annotations[line_num]
+      if line_data then
+        -- Handle both old and new annotation formats
+        local is_new_format = false
+        if type(line_data) == "table" then
+          for k, v in pairs(line_data) do
+            if type(k) == "string" and type(v) == "table" and v.bufnr then
+              is_new_format = true
+              break
+            end
+          end
+        end
+
+        -- Use the globally assigned color from layer_info
         local global_color = layer_info and layer_info[layer_name] and
                            layer_info[layer_name].labels[label_name] and
                            layer_info[layer_name].labels[label_name].color
         local color = global_color or state.layers[layer_name].labels[label_name].color
 
-        table.insert(annotations_by_layer[layer_name], {
-          layer = layer_name,
-          label = label_name,
-          color = color
-        })
+        if is_new_format then
+          -- New format: multiple annotations per line
+          -- We only need to record that this line has this label once for the HTML export
+          table.insert(annotations_by_layer[layer_name], {
+            layer = layer_name,
+            label = label_name,
+            color = color
+          })
+        elseif line_data.bufnr then
+          -- Old format: single annotation per line
+          table.insert(annotations_by_layer[layer_name], {
+            layer = layer_name,
+            label = label_name,
+            color = color
+          })
+        end
       end
     end
   end
