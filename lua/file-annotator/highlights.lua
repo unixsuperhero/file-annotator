@@ -1,31 +1,6 @@
 local M = {}
 local state = require("file-annotator").state
 
--- Helper function for silent messaging
-local function silent_message(msg, level)
-  level = level or vim.log.levels.INFO
-
-  -- Split multi-line messages and handle each line separately
-  local lines = vim.split(msg, "\n", { plain = true })
-
-  for _, line in ipairs(lines) do
-    -- Escape single quotes by doubling them
-    local escaped_line = line:gsub("'", "''")
-
-    if level == vim.log.levels.ERROR then
-      vim.cmd("silent echohl ErrorMsg")
-      vim.cmd(string.format("silent echom '%s'", escaped_line))
-      vim.cmd("silent echohl None")
-    elseif level == vim.log.levels.WARN then
-      vim.cmd("silent echohl WarningMsg")
-      vim.cmd(string.format("silent echom '%s'", escaped_line))
-      vim.cmd("silent echohl None")
-    else
-      vim.cmd(string.format("silent echom '%s'", escaped_line))
-    end
-  end
-end
-
 function M.setup()
   -- Set up autocommands for refreshing highlights when entering buffers
   vim.api.nvim_create_autocmd({"BufEnter", "BufWinEnter"}, {
@@ -36,8 +11,8 @@ function M.setup()
   })
 end
 
-function M.create_highlight_group(layer_name, label_name, color)
-  local group_name = "FileAnnotator_" .. layer_name .. "_" .. label_name
+function M.create_highlight_group(label_name, color)
+  local group_name = "FileAnnotator_" .. label_name
 
   vim.api.nvim_set_hl(0, group_name, {
     bg = color,
@@ -57,21 +32,16 @@ function M.get_contrasting_color(hex_color)
   return luminance > 0.5 and "#000000" or "#FFFFFF"
 end
 
-function M.apply_highlight(layer_name, label_name, line_num, col_start, col_end)
-  if not state.layers[layer_name] or not state.layers[layer_name].visible then
+function M.apply_highlight(label_name, line_num, col_start, col_end)
+  if not state.labels[label_name] then
     return
   end
 
   local bufnr = vim.api.nvim_get_current_buf()
-  local namespace = state.namespaces[layer_name]
-  local group_name = "FileAnnotator_" .. layer_name .. "_" .. label_name
+  local namespace = state.namespace
+  local group_name = "FileAnnotator_" .. label_name
 
-  -- Ensure highlight group exists
-  if not state.layers[layer_name].labels[label_name] then
-    return
-  end
-
-  M.create_highlight_group(layer_name, label_name, state.layers[layer_name].labels[label_name].color)
+  M.create_highlight_group(label_name, state.labels[label_name].color)
 
   -- Apply highlight with column range if specified
   if col_start and col_end then
@@ -84,39 +54,17 @@ end
 function M.refresh_buffer()
   local bufnr = vim.api.nvim_get_current_buf()
 
-  -- Clear all namespaces first
-  for layer_name, namespace in pairs(state.namespaces) do
-    vim.api.nvim_buf_clear_namespace(bufnr, namespace, 0, -1)
-  end
+  -- Clear namespace
+  vim.api.nvim_buf_clear_namespace(bufnr, state.namespace, 0, -1)
 
-  -- Only show highlights for the current layer
-  if state.current_layer and state.annotations[state.current_layer] then
-    local layer_annotations = state.annotations[state.current_layer]
-    for label_name, label_annotations in pairs(layer_annotations) do
-      for line_num, line_data in pairs(label_annotations) do
-        if type(line_data) == "table" then
-          -- Check if this is new format (line_data contains annotation_id -> annotation)
-          -- or old format (line_data is the annotation itself)
-          local is_new_format = false
-          for k, v in pairs(line_data) do
-            if type(k) == "string" and type(v) == "table" and v.bufnr then
-              is_new_format = true
-              break
-            end
-          end
-
-          if is_new_format then
-            -- New format: multiple annotations per line
-            for annotation_id, annotation in pairs(line_data) do
-              if type(annotation) == "table" and annotation.bufnr == bufnr then
-                M.apply_highlight(state.current_layer, label_name, line_num, annotation.col_start, annotation.col_end)
-              end
-            end
-          elseif line_data.bufnr then
-            -- Old format: single annotation per line
-            if line_data.bufnr == bufnr then
-              M.apply_highlight(state.current_layer, label_name, line_num)
-            end
+  -- Reapply all annotations
+  for label_name, label_annotations in pairs(state.annotations) do
+    for line_num, line_data in pairs(label_annotations) do
+      if type(line_data) == "table" then
+        -- New format: multiple annotations per line
+        for annotation_id, annotation in pairs(line_data) do
+          if type(annotation) == "table" and annotation.bufnr == bufnr then
+            M.apply_highlight(label_name, line_num, annotation.col_start, annotation.col_end)
           end
         end
       end
@@ -124,50 +72,7 @@ function M.refresh_buffer()
   end
 end
 
-function M.refresh_buffer_all_layers()
-  local bufnr = vim.api.nvim_get_current_buf()
-
-  -- Clear all namespaces first
-  for layer_name, namespace in pairs(state.namespaces) do
-    vim.api.nvim_buf_clear_namespace(bufnr, namespace, 0, -1)
-  end
-
-  -- Reapply all annotations from all visible layers (for export/special cases)
-  for layer_name, layer_annotations in pairs(state.annotations) do
-    if state.layers[layer_name] and state.layers[layer_name].visible then
-      for label_name, label_annotations in pairs(layer_annotations) do
-        for line_num, line_data in pairs(label_annotations) do
-          if type(line_data) == "table" then
-            -- Check if this is new format or old format
-            local is_new_format = false
-            for k, v in pairs(line_data) do
-              if type(k) == "string" and type(v) == "table" and v.bufnr then
-                is_new_format = true
-                break
-              end
-            end
-
-            if is_new_format then
-              -- New format: multiple annotations per line
-              for annotation_id, annotation in pairs(line_data) do
-                if type(annotation) == "table" and annotation.bufnr == bufnr then
-                  M.apply_highlight(layer_name, label_name, line_num, annotation.col_start, annotation.col_end)
-                end
-              end
-            elseif line_data.bufnr then
-              -- Old format: single annotation per line
-              if line_data.bufnr == bufnr then
-                M.apply_highlight(layer_name, label_name, line_num)
-              end
-            end
-          end
-        end
-      end
-    end
-  end
-end
-
-function M.preview_color(layer_name, label_name, color)
+function M.preview_color(label_name, color)
   local bufnr = vim.api.nvim_get_current_buf()
   local line_num = vim.fn.line(".")
 

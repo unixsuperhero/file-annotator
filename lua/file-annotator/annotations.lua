@@ -26,41 +26,120 @@ local function silent_message(msg, level)
   end
 end
 
-function M.annotate_line(line_num, label_name, layer_name, col_start, col_end)
-  layer_name = layer_name or state.current_layer
-
-  if not layer_name then
-    vim.notify("No current layer set and no layer specified", vim.log.levels.ERROR)
+-- Label management
+function M.add_label(label_name, color)
+  if not label_name or label_name == "" then
+    vim.notify("Label name cannot be empty", vim.log.levels.ERROR)
     return false
   end
 
-  local layers = require("file-annotator.layers")
-
-  -- Auto-create layer if it doesn't exist
-  if not state.layers[layer_name] then
-    layers.create_layer(layer_name)
-    silent_message("Auto-created layer: " .. layer_name, vim.log.levels.INFO)
+  if state.labels[label_name] then
+    vim.notify("Label '" .. label_name .. "' already exists", vim.log.levels.WARN)
+    return false
   end
 
-  -- Auto-switch to the layer if it's not the current one
-  if state.current_layer ~= layer_name then
-    state.current_layer = layer_name
-    require("file-annotator.highlights").refresh_buffer()
-    silent_message("Switched to layer: " .. layer_name, vim.log.levels.INFO)
+  local config = require("file-annotator").config
+  local used_colors = {}
+  for _, label in pairs(state.labels) do
+    used_colors[label.color] = true
+  end
+
+  if not color then
+    for _, default_color in ipairs(config.default_colors) do
+      if not used_colors[default_color] then
+        color = default_color
+        break
+      end
+    end
+
+    if not color then
+      color = config.default_colors[math.random(#config.default_colors)]
+    end
+  end
+
+  state.labels[label_name] = {
+    color = color,
+    created_at = os.time()
+  }
+
+  require("file-annotator.highlights").create_highlight_group(label_name, color)
+
+  silent_message("Added label '" .. label_name .. "'", vim.log.levels.INFO)
+  return true
+end
+
+function M.remove_label(label_name)
+  if not state.labels[label_name] then
+    vim.notify("Label '" .. label_name .. "' does not exist", vim.log.levels.ERROR)
+    return false
+  end
+
+  state.labels[label_name] = nil
+
+  if state.annotations[label_name] then
+    state.annotations[label_name] = nil
+  end
+
+  require("file-annotator.highlights").refresh_buffer()
+
+  silent_message("Removed label '" .. label_name .. "'", vim.log.levels.INFO)
+  return true
+end
+
+function M.rename_label(old_name, new_name)
+  if not state.labels[old_name] then
+    vim.notify("Label '" .. old_name .. "' does not exist", vim.log.levels.ERROR)
+    return false
+  end
+
+  if state.labels[new_name] then
+    vim.notify("Label '" .. new_name .. "' already exists", vim.log.levels.ERROR)
+    return false
+  end
+
+  state.labels[new_name] = state.labels[old_name]
+  state.labels[old_name] = nil
+
+  if state.annotations[old_name] then
+    state.annotations[new_name] = state.annotations[old_name]
+    state.annotations[old_name] = nil
+  end
+
+  require("file-annotator.highlights").create_highlight_group(new_name, state.labels[new_name].color)
+  require("file-annotator.highlights").refresh_buffer()
+
+  silent_message("Renamed label '" .. old_name .. "' to '" .. new_name .. "'", vim.log.levels.INFO)
+  return true
+end
+
+function M.list_labels()
+  local labels = {}
+  for name, label in pairs(state.labels) do
+    table.insert(labels, {
+      name = name,
+      color = label.color
+    })
+  end
+
+  table.sort(labels, function(a, b) return a.name < b.name end)
+  return labels
+end
+
+-- Annotation functions
+function M.annotate_line(line_num, label_name, col_start, col_end)
+  if not label_name or label_name == "" then
+    vim.notify("Label name cannot be empty", vim.log.levels.ERROR)
+    return false
   end
 
   -- Auto-create label if it doesn't exist
-  if not state.layers[layer_name].labels[label_name] then
-    layers.add_label(layer_name, label_name)
-    silent_message("Auto-created label '" .. label_name .. "' in layer '" .. layer_name .. "'", vim.log.levels.INFO)
+  if not state.labels[label_name] then
+    M.add_label(label_name)
+    silent_message("Auto-created label: " .. label_name, vim.log.levels.INFO)
   end
 
-  if not state.annotations[layer_name] then
-    state.annotations[layer_name] = {}
-  end
-
-  if not state.annotations[layer_name][label_name] then
-    state.annotations[layer_name][label_name] = {}
+  if not state.annotations[label_name] then
+    state.annotations[label_name] = {}
   end
 
   local bufnr = vim.api.nvim_get_current_buf()
@@ -81,14 +160,14 @@ function M.annotate_line(line_num, label_name, layer_name, col_start, col_end)
     end
   end
 
-  if not state.annotations[layer_name][label_name][line_num] then
-    state.annotations[layer_name][label_name][line_num] = {}
+  if not state.annotations[label_name][line_num] then
+    state.annotations[label_name][line_num] = {}
   end
 
   -- Generate unique ID for this annotation
   local annotation_id = os.time() .. "_" .. math.random(1000, 9999)
 
-  state.annotations[layer_name][label_name][line_num][annotation_id] = {
+  state.annotations[label_name][line_num][annotation_id] = {
     bufnr = bufnr,
     filename = vim.api.nvim_buf_get_name(bufnr),
     timestamp = os.time(),
@@ -96,76 +175,60 @@ function M.annotate_line(line_num, label_name, layer_name, col_start, col_end)
     col_end = col_end
   }
 
-  require("file-annotator.highlights").apply_highlight(layer_name, label_name, line_num)
+  require("file-annotator.highlights").apply_highlight(label_name, line_num)
   return true
 end
 
-function M.remove_annotation(line_num, label_name, layer_name)
-  layer_name = layer_name or state.current_layer
-
-  if not layer_name then
-    vim.notify("No current layer set", vim.log.levels.ERROR)
-    return false
-  end
-
-  if not state.annotations[layer_name] or
-     not state.annotations[layer_name][label_name] or
-     not state.annotations[layer_name][label_name][line_num] then
+function M.remove_annotation(line_num, label_name)
+  if not state.annotations[label_name] or
+     not state.annotations[label_name][line_num] then
     vim.notify("No annotation found at line " .. line_num, vim.log.levels.WARN)
     return false
   end
 
-  state.annotations[layer_name][label_name][line_num] = nil
+  state.annotations[label_name][line_num] = nil
 
   local bufnr = vim.api.nvim_get_current_buf()
-  vim.api.nvim_buf_clear_namespace(bufnr, state.namespaces[layer_name], line_num - 1, line_num)
+  vim.api.nvim_buf_clear_namespace(bufnr, state.namespace, line_num - 1, line_num)
 
   return true
 end
 
-function M.toggle_annotation(line_num, label_name, layer_name)
-  layer_name = layer_name or state.current_layer
-
-  if state.annotations[layer_name] and
-     state.annotations[layer_name][label_name] and
-     state.annotations[layer_name][label_name][line_num] then
-    return M.remove_annotation(line_num, label_name, layer_name)
+function M.toggle_annotation(line_num, label_name)
+  if state.annotations[label_name] and
+     state.annotations[label_name][line_num] then
+    return M.remove_annotation(line_num, label_name)
   else
-    return M.annotate_line(line_num, label_name, layer_name)
+    return M.annotate_line(line_num, label_name)
   end
 end
 
-function M.clear_all_annotations(layer_name)
-  layer_name = layer_name or state.current_layer
-
-  if not layer_name then
-    vim.notify("No current layer set", vim.log.levels.ERROR)
-    return false
-  end
-
-  if state.annotations[layer_name] then
-    state.annotations[layer_name] = {}
+function M.clear_all_annotations(label_name)
+  if label_name then
+    if state.annotations[label_name] then
+      state.annotations[label_name] = {}
+    end
+    silent_message("Cleared all annotations for label: " .. label_name, vim.log.levels.INFO)
+  else
+    state.annotations = {}
+    silent_message("Cleared all annotations", vim.log.levels.INFO)
   end
 
   local bufnr = vim.api.nvim_get_current_buf()
-  vim.api.nvim_buf_clear_namespace(bufnr, state.namespaces[layer_name], 0, -1)
+  vim.api.nvim_buf_clear_namespace(bufnr, state.namespace, 0, -1)
 
-  silent_message("Cleared all annotations in layer: " .. layer_name, vim.log.levels.INFO)
   return true
 end
 
 function M.get_line_annotations(line_num)
   local annotations = {}
 
-  for layer_name, layer_annotations in pairs(state.annotations) do
-    for label_name, label_annotations in pairs(layer_annotations) do
-      if label_annotations[line_num] then
-        table.insert(annotations, {
-          layer = layer_name,
-          label = label_name,
-          color = state.layers[layer_name].labels[label_name].color
-        })
-      end
+  for label_name, label_annotations in pairs(state.annotations) do
+    if label_annotations[line_num] then
+      table.insert(annotations, {
+        label = label_name,
+        color = state.labels[label_name].color
+      })
     end
   end
 
@@ -176,9 +239,7 @@ function M.get_all_annotations()
   return state.annotations
 end
 
-function M.annotate_selection(label_name, layer_name)
-  layer_name = layer_name or state.current_layer
-
+function M.annotate_selection(label_name)
   local start_line = vim.fn.line("'<")
   local end_line = vim.fn.line("'>")
   local start_col = vim.fn.col("'<") - 1  -- Convert to 0-based
@@ -191,7 +252,7 @@ function M.annotate_selection(label_name, layer_name)
   if mode == 'v' then
     if start_line == end_line then
       -- Single line character selection
-      if M.annotate_line(start_line, label_name, layer_name, start_col, end_col) then
+      if M.annotate_line(start_line, label_name, start_col, end_col) then
         success_count = success_count + 1
         silent_message("Annotated character range (cols " .. start_col .. "-" .. end_col .. ") with label '" .. label_name .. "'", vim.log.levels.INFO)
       end
@@ -210,7 +271,7 @@ function M.annotate_selection(label_name, layer_name)
           col_e = nil
         end
 
-        if M.annotate_line(line_num, label_name, layer_name, col_s, col_e) then
+        if M.annotate_line(line_num, label_name, col_s, col_e) then
           success_count = success_count + 1
         end
       end
@@ -219,7 +280,7 @@ function M.annotate_selection(label_name, layer_name)
   else
     -- Line-wise or block-wise visual selection - annotate whole lines
     for line_num = start_line, end_line do
-      if M.annotate_line(line_num, label_name, layer_name) then
+      if M.annotate_line(line_num, label_name) then
         success_count = success_count + 1
       end
     end
@@ -229,7 +290,7 @@ function M.annotate_selection(label_name, layer_name)
   return success_count > 0
 end
 
-function M.annotate_range(start_line, end_line, label_name, layer_name)
+function M.annotate_range(start_line, end_line, label_name)
   if not start_line or not end_line then
     vim.notify("Invalid range specified", vim.log.levels.ERROR)
     return false
@@ -241,7 +302,7 @@ function M.annotate_range(start_line, end_line, label_name, layer_name)
 
   local success_count = 0
   for line_num = start_line, end_line do
-    if M.annotate_line(line_num, label_name, layer_name) then
+    if M.annotate_line(line_num, label_name) then
       success_count = success_count + 1
     end
   end

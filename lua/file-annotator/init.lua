@@ -9,10 +9,9 @@ M.config = {
 }
 
 M.state = {
-  layers = {},
-  current_layer = nil,
-  annotations = {},
-  namespaces = {}
+  labels = {},  -- Global labels: label_name -> {color, created_at}
+  annotations = {},  -- Annotations: label_name -> line_num -> annotation_id -> {bufnr, filename, timestamp, col_start, col_end}
+  namespace = nil  -- Single namespace for all annotations
 }
 
 local function ensure_export_dir()
@@ -23,6 +22,9 @@ function M.setup(opts)
   opts = opts or {}
   M.config = vim.tbl_deep_extend("force", M.config, opts)
   ensure_export_dir()
+
+  -- Initialize single namespace for all annotations
+  M.state.namespace = vim.api.nvim_create_namespace("file_annotator")
 
   require("file-annotator.commands").setup()
   require("file-annotator.highlights").setup()
