@@ -57,7 +57,7 @@ function M.get_contrasting_color(hex_color)
   return luminance > 0.5 and "#000000" or "#FFFFFF"
 end
 
-function M.apply_highlight(layer_name, label_name, line_num)
+function M.apply_highlight(layer_name, label_name, line_num, col_start, col_end)
   if not state.layers[layer_name] or not state.layers[layer_name].visible then
     return
   end
@@ -73,7 +73,12 @@ function M.apply_highlight(layer_name, label_name, line_num)
 
   M.create_highlight_group(layer_name, label_name, state.layers[layer_name].labels[label_name].color)
 
-  vim.api.nvim_buf_add_highlight(bufnr, namespace, group_name, line_num - 1, 0, -1)
+  -- Apply highlight with column range if specified
+  if col_start and col_end then
+    vim.api.nvim_buf_add_highlight(bufnr, namespace, group_name, line_num - 1, col_start, col_end)
+  else
+    vim.api.nvim_buf_add_highlight(bufnr, namespace, group_name, line_num - 1, 0, -1)
+  end
 end
 
 function M.refresh_buffer()
@@ -88,17 +93,31 @@ function M.refresh_buffer()
   if state.current_layer and state.annotations[state.current_layer] then
     local layer_annotations = state.annotations[state.current_layer]
     for label_name, label_annotations in pairs(layer_annotations) do
-      for line_num, annotation in pairs(label_annotations) do
-        -- Defensive check: ensure annotation is a table with expected fields
-        if type(annotation) == "table" and annotation.bufnr then
-          if annotation.bufnr == bufnr then
-            M.apply_highlight(state.current_layer, label_name, line_num)
+      for line_num, line_data in pairs(label_annotations) do
+        if type(line_data) == "table" then
+          -- Check if this is new format (line_data contains annotation_id -> annotation)
+          -- or old format (line_data is the annotation itself)
+          local is_new_format = false
+          for k, v in pairs(line_data) do
+            if type(k) == "string" and type(v) == "table" and v.bufnr then
+              is_new_format = true
+              break
+            end
           end
-        else
-          -- Handle corrupted annotation data
-          vim.notify(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
-                                   state.current_layer, label_name, line_num), vim.log.levels.WARN)
-          label_annotations[line_num] = nil
+
+          if is_new_format then
+            -- New format: multiple annotations per line
+            for annotation_id, annotation in pairs(line_data) do
+              if type(annotation) == "table" and annotation.bufnr == bufnr then
+                M.apply_highlight(state.current_layer, label_name, line_num, annotation.col_start, annotation.col_end)
+              end
+            end
+          elseif line_data.bufnr then
+            -- Old format: single annotation per line
+            if line_data.bufnr == bufnr then
+              M.apply_highlight(state.current_layer, label_name, line_num)
+            end
+          end
         end
       end
     end
@@ -117,17 +136,30 @@ function M.refresh_buffer_all_layers()
   for layer_name, layer_annotations in pairs(state.annotations) do
     if state.layers[layer_name] and state.layers[layer_name].visible then
       for label_name, label_annotations in pairs(layer_annotations) do
-        for line_num, annotation in pairs(label_annotations) do
-          -- Defensive check: ensure annotation is a table with expected fields
-          if type(annotation) == "table" and annotation.bufnr then
-            if annotation.bufnr == bufnr then
-              M.apply_highlight(layer_name, label_name, line_num)
+        for line_num, line_data in pairs(label_annotations) do
+          if type(line_data) == "table" then
+            -- Check if this is new format or old format
+            local is_new_format = false
+            for k, v in pairs(line_data) do
+              if type(k) == "string" and type(v) == "table" and v.bufnr then
+                is_new_format = true
+                break
+              end
             end
-          else
-            -- Handle corrupted annotation data
-            vim.notify(string.format("Warning: Corrupted annotation data for layer '%s', label '%s', line %d. Removing.",
-                                     layer_name, label_name, line_num), vim.log.levels.WARN)
-            label_annotations[line_num] = nil
+
+            if is_new_format then
+              -- New format: multiple annotations per line
+              for annotation_id, annotation in pairs(line_data) do
+                if type(annotation) == "table" and annotation.bufnr == bufnr then
+                  M.apply_highlight(layer_name, label_name, line_num, annotation.col_start, annotation.col_end)
+                end
+              end
+            elseif line_data.bufnr then
+              -- Old format: single annotation per line
+              if line_data.bufnr == bufnr then
+                M.apply_highlight(layer_name, label_name, line_num)
+              end
+            end
           end
         end
       end

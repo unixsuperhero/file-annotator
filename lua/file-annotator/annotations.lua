@@ -26,7 +26,7 @@ local function silent_message(msg, level)
   end
 end
 
-function M.annotate_line(line_num, label_name, layer_name)
+function M.annotate_line(line_num, label_name, layer_name, col_start, col_end)
   layer_name = layer_name or state.current_layer
 
   if not layer_name then
@@ -71,10 +71,29 @@ function M.annotate_line(line_num, label_name, layer_name)
     return false
   end
 
-  state.annotations[layer_name][label_name][line_num] = {
+  -- Validate column range if provided
+  if col_start and col_end then
+    local line_content = vim.api.nvim_buf_get_lines(bufnr, line_num - 1, line_num, false)[1]
+    local line_length = #line_content
+    if col_start < 0 or col_end > line_length or col_start >= col_end then
+      vim.notify("Invalid column range", vim.log.levels.ERROR)
+      return false
+    end
+  end
+
+  if not state.annotations[layer_name][label_name][line_num] then
+    state.annotations[layer_name][label_name][line_num] = {}
+  end
+
+  -- Generate unique ID for this annotation
+  local annotation_id = os.time() .. "_" .. math.random(1000, 9999)
+
+  state.annotations[layer_name][label_name][line_num][annotation_id] = {
     bufnr = bufnr,
     filename = vim.api.nvim_buf_get_name(bufnr),
-    timestamp = os.time()
+    timestamp = os.time(),
+    col_start = col_start,
+    col_end = col_end
   }
 
   require("file-annotator.highlights").apply_highlight(layer_name, label_name, line_num)
@@ -162,15 +181,51 @@ function M.annotate_selection(label_name, layer_name)
 
   local start_line = vim.fn.line("'<")
   local end_line = vim.fn.line("'>")
+  local start_col = vim.fn.col("'<") - 1  -- Convert to 0-based
+  local end_col = vim.fn.col("'>")  -- Inclusive end
+  local mode = vim.fn.visualmode()
 
   local success_count = 0
-  for line_num = start_line, end_line do
-    if M.annotate_line(line_num, label_name, layer_name) then
-      success_count = success_count + 1
+
+  -- Handle character-wise visual selection
+  if mode == 'v' then
+    if start_line == end_line then
+      -- Single line character selection
+      if M.annotate_line(start_line, label_name, layer_name, start_col, end_col) then
+        success_count = success_count + 1
+        silent_message("Annotated character range (cols " .. start_col .. "-" .. end_col .. ") with label '" .. label_name .. "'", vim.log.levels.INFO)
+      end
+    else
+      -- Multi-line character selection - annotate each line with appropriate column ranges
+      for line_num = start_line, end_line do
+        local col_s, col_e
+        if line_num == start_line then
+          col_s = start_col
+          col_e = nil  -- To end of line
+        elseif line_num == end_line then
+          col_s = 0  -- From start of line
+          col_e = end_col
+        else
+          col_s = nil  -- Whole line
+          col_e = nil
+        end
+
+        if M.annotate_line(line_num, label_name, layer_name, col_s, col_e) then
+          success_count = success_count + 1
+        end
+      end
+      silent_message("Annotated " .. success_count .. " lines with label '" .. label_name .. "'", vim.log.levels.INFO)
     end
+  else
+    -- Line-wise or block-wise visual selection - annotate whole lines
+    for line_num = start_line, end_line do
+      if M.annotate_line(line_num, label_name, layer_name) then
+        success_count = success_count + 1
+      end
+    end
+    silent_message("Annotated " .. success_count .. " lines with label '" .. label_name .. "'", vim.log.levels.INFO)
   end
 
-  silent_message("Annotated " .. success_count .. " lines with label '" .. label_name .. "'", vim.log.levels.INFO)
   return success_count > 0
 end
 
